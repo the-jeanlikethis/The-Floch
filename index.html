@@ -545,7 +545,7 @@
                 <button class="btn-menu btn-menu-quick" id="btn-mode-quick">⚡ Partida Rápida (VS CPU)</button>
                 <button class="btn-menu btn-menu-story" id="btn-mode-story">📜 Modo Historia</button>
                 <button class="btn-menu btn-menu-time" id="btn-mode-time-attack">⏱️ Contrarreloj VS CPU</button>
-                <button class="btn-menu btn-cancel" id="btn-back-single">↩️ Volver</button>
+                <button class="btn-menu btn-cancel" id="btn-back-single">↩️️ Volver</button>
             </div>
 
             <!-- VISTA MULTIJUGADOR -->
@@ -735,6 +735,19 @@
     </div>
 
     <!-- OTROS MODALES -->
+    <!-- MODAL NUEVO: RECUPERAR PARTIDA MODO HISTORIA -->
+    <div id="resume-story-modal" class="modal" style="z-index: 250;">
+        <div class="choice-modal-content">
+            <h3 style="color: var(--accent-gold); margin-bottom: 10px;">💾 Partida Guardada</h3>
+            <p id="resume-story-desc" style="color: var(--text-main); font-size: 0.95rem; line-height: 1.4; margin-bottom: 15px;"></p>
+            <div class="choice-buttons">
+                <button id="btn-resume-story" class="btn btn-primary" style="padding:12px; font-size:1rem;">Continuar Partida</button>
+                <button id="btn-new-story" class="btn btn-menu-story" style="padding:12px; font-size:0.95rem;">Empezar de Nuevo (Borrar)</button>
+                <button id="btn-cancel-resume" class="btn btn-cancel" style="padding:12px; font-size:0.95rem;">Cancelar</button>
+            </div>
+        </div>
+    </div>
+
     <div id="unlock-modal" class="modal" style="z-index: 150;">
         <div class="story-modal-content" style="max-width: 400px;">
             <h2 style="color: var(--accent-gold); margin-bottom: 12px; font-size: 1.3rem;">¡Nueva Carta Desbloqueada!</h2>
@@ -1110,7 +1123,6 @@
 
         // =========================================================
         // MOTOR ONLINE MQTT
-        // =========================================================
         let mqttClient = null; let myRole = ''; let currentRoomCode = ''; let joinInterval = null;
 
         function openOnlineModal() { document.getElementById('online-menu-options').style.display = 'flex'; document.getElementById('online-create-view').style.display = 'none'; document.getElementById('online-join-view').style.display = 'none'; document.getElementById('online-modal').style.display = 'flex'; }
@@ -1165,7 +1177,7 @@
                     if (opAb) { opAb.used = true; opAb.discarded = true; }
                     passTurnAfterMove();
                     break;
-                case 'DISCARD_JOKER_HAND': // NUEVA SEÑAL ONLINE PARA EL COMODIN
+                case 'DISCARD_JOKER_HAND': 
                     let oppHandJk = (myRole === 'player') ? cpuHand : playerHand;
                     let opJk = oppHandJk.find(c => c.type === 'comodin' && !c.used);
                     if (opJk) { opJk.used = true; opJk.discarded = true; }
@@ -1184,6 +1196,7 @@
         }
         function startNewOnlineMatch() { winsPlayer = 0; winsCPU = 0; currentRoundNum = 1; updateScoreBoard(); applyRoundReset(sharedBoardColors); }
         function applyOpponentPlacement(msg) { sfxPlaceCard(); let oppHand = (myRole === 'player') ? cpuHand : playerHand; const card = oppHand[msg.cardIdx]; const tile = boardTiles[msg.tileId]; tile.card = { owner: (myRole === 'player') ? 'cpu' : 'player', type: card.type, icon: card.icon, color: card.color, faceUp: msg.faceUp, revealed: false, isDisguised: true }; if (myRole === 'player') { if (msg.faceUp) cpuFaceUpCount++; else cpuFaceDownCount++; } else { if (msg.faceUp) playerFaceUpCount++; else playerFaceDownCount++; } card.used = true; updateCounterUI(); renderBoard(); renderHand(); passTurnAfterMove(); }
+
         // =========================================================
         // UTILIDADES Y AUDIO
         // =========================================================
@@ -1275,6 +1288,55 @@
                 container.appendChild(div);
             });
         }
+        
+        // =========================================================
+        // MOTOR DE GUARDADO / CARGA (MODO HISTORIA)
+        // =========================================================
+        function saveStoryProgress() {
+            if (gameMode !== 'STORY') return;
+            if (storyLives <= 0 || currentStage > 6) { localStorage.removeItem('theFlockSave'); return; }
+            
+            const saveData = {
+                currentStage: currentStage, storyLives: storyLives,
+                winsPlayer: winsPlayer, winsCPU: winsCPU, currentRoundNum: currentRoundNum,
+                gameState: gameState, currentTurn: currentTurn, isJokerPhase: isJokerPhase, jokerPhaseStep: jokerPhaseStep,
+                playerFaceUpCount: playerFaceUpCount, playerFaceDownCount: playerFaceDownCount,
+                cpuFaceUpCount: cpuFaceUpCount, cpuFaceDownCount: cpuFaceDownCount,
+                sharedBoardColors: sharedBoardColors, p1SelectedDeck: p1SelectedDeck, p2SelectedDeck: p2SelectedDeck,
+                playerHand: playerHand.map(c => ({...c})), cpuHand: cpuHand.map(c => ({...c})),
+                boardTiles: boardTiles.map(t => {
+                    let cardClone = null;
+                    if (t.card) { cardClone = { owner: t.card.owner, type: t.card.type, icon: t.card.icon, color: t.card.color, faceUp: t.card.faceUp, revealed: t.card.revealed, isDisguised: t.card.isDisguised }; }
+                    return { id: t.id, color: t.color, card: cardClone };
+                })
+            };
+            localStorage.setItem('theFlockSave', JSON.stringify(saveData));
+        }
+
+        function loadStoryProgress() {
+            try {
+                const saved = JSON.parse(localStorage.getItem('theFlockSave'));
+                if (!saved) return false;
+                
+                gameMode = 'STORY'; matchFormat = 'BO3';
+                currentStage = saved.currentStage; storyLives = saved.storyLives;
+                winsPlayer = saved.winsPlayer; winsCPU = saved.winsCPU; currentRoundNum = saved.currentRoundNum;
+                gameState = saved.gameState; currentTurn = saved.currentTurn; 
+                isJokerPhase = saved.isJokerPhase; jokerPhaseStep = saved.jokerPhaseStep || 0;
+                playerFaceUpCount = saved.playerFaceUpCount; playerFaceDownCount = saved.playerFaceDownCount;
+                cpuFaceUpCount = saved.cpuFaceUpCount; cpuFaceDownCount = saved.cpuFaceDownCount;
+                sharedBoardColors = saved.sharedBoardColors;
+                p1SelectedDeck = saved.p1SelectedDeck; p2SelectedDeck = saved.p2SelectedDeck;
+                playerHand = saved.playerHand; cpuHand = saved.cpuHand;
+                
+                boardTiles.forEach((tile, index) => {
+                    tile.color = saved.boardTiles[index].color;
+                    tile.card = saved.boardTiles[index].card;
+                });
+                
+                return true;
+            } catch(e) { console.error("Error al cargar la partida:", e); return false; }
+        }
 
         window.onload = () => {
             initGeometry(); buildAdjacencyMap();
@@ -1287,7 +1349,21 @@
             bindTouchClick(document.getElementById('btn-mode-tutorial'), startTutorial);
             bindTouchClick(document.getElementById('btn-mode-quick'), () => openFormatModal('QUICK'));
             bindTouchClick(document.getElementById('btn-mode-multi'), () => openFormatModal('MULTI'));
-            bindTouchClick(document.getElementById('btn-mode-story'), startStoryMode);
+            
+            // Botón Modo Historia (Comprueba guardado)
+            bindTouchClick(document.getElementById('btn-mode-story'), () => {
+                if (localStorage.getItem('theFlockSave')) {
+                    const saved = JSON.parse(localStorage.getItem('theFlockSave'));
+                    document.getElementById('resume-story-desc').innerText = `Tienes una partida guardada en la Fase ${saved.currentStage} (❤️ x${saved.storyLives}). ¿Qué deseas hacer?`;
+                    document.getElementById('resume-story-modal').style.display = 'flex';
+                } else {
+                    startStoryMode();
+                }
+            });
+            bindTouchClick(document.getElementById('btn-resume-story'), () => { document.getElementById('resume-story-modal').style.display = 'none'; if(loadStoryProgress()){ resumeStoryMode(); }else{ startStoryMode(); } });
+            bindTouchClick(document.getElementById('btn-new-story'), () => { localStorage.removeItem('theFlockSave'); document.getElementById('resume-story-modal').style.display = 'none'; startStoryMode(); });
+            bindTouchClick(document.getElementById('btn-cancel-resume'), () => { document.getElementById('resume-story-modal').style.display = 'none'; });
+
             bindTouchClick(document.getElementById('btn-mode-time-attack'), startTimeAttackMode);
             bindTouchClick(document.getElementById('btn-home'), goToMenu);
 
@@ -1320,7 +1396,6 @@
             bindTouchClick(document.getElementById('btn-menu-rules'), openModal);
             bindTouchClick(document.getElementById('btn-close-modal'), closeModal);
             
-            // EVENTOS DE INFORMACIÓN DE CARTA EN EL DECK BUILDER
             document.querySelectorAll('.deck-card-info').forEach(infoEl => {
                 bindTouchClick(infoEl, () => {
                     const cardType = infoEl.getAttribute('data-type');
@@ -1340,6 +1415,10 @@
                     else { sendNetMsg({ type: 'REMATCH_REQUEST' }); document.getElementById('status-msg').innerText = "Petición de revancha enviada..."; }
                 }
                 else if (gameMode === 'TUTORIAL') { goToMenu(); }
+                else if (gameMode === 'STORY' && storyLives > 0) {
+                    if (isMusicPlaying) startMusicContext('GAME'); 
+                    startNewMatch();
+                }
                 else { 
                     if (isMusicPlaying) startMusicContext('GAME'); 
                     startNewMatch(); 
@@ -1371,14 +1450,12 @@
             bindTouchClick(document.getElementById('btn-tutorial-accept'), acceptTutorialStep);
             bindTouchClick(document.getElementById('btn-story-continue'), acceptStoryModalStep);
             
-            // BOTÓN CONTINUAR TUTORIAL (Pausa táctica)
             bindTouchClick(document.getElementById('btn-tutorial-next-step'), () => {
                 document.getElementById('btn-tutorial-next-step').style.display = 'none';
                 tutorialStep++;
                 showTutorialModal();
             });
             
-            // EVENTOS REGISTRO DE BATALLA
             bindTouchClick(document.getElementById('btn-battle-log'), () => {
                 const list = document.getElementById('battle-log-list');
                 list.innerHTML = '';
@@ -1414,6 +1491,7 @@
         }
 
         function goToMenu() {
+            if (gameMode === 'STORY') saveStoryProgress(); // Guarda al salir
             if (gameMode === 'ONLINE') cancelOnlineSession();
             if (gameTimerInterval) clearInterval(gameTimerInterval);
             document.getElementById('screen-game').classList.remove('active');
@@ -1516,9 +1594,49 @@
         }
 
         function startTutorial() { gameMode = 'TUTORIAL'; matchFormat = 'SINGLE'; p1SelectedDeck = [ { type: 'lobo', color: 'red', icon: '🐺', used: false, discarded: false }, { type: 'lobo', color: 'red', icon: '🐺', used: false, discarded: false }, { type: 'oveja', color: 'black', icon: '🐑', used: false, discarded: false }, { type: 'oveja', color: 'black', icon: '🐑', used: false, discarded: false }, { type: 'pastor', color: 'yellow', icon: '👨‍🌾', used: false, discarded: false }, { type: 'piedra', color: 'black', icon: '🌑', used: false, discarded: false }, { type: 'comodin', color: 'any', icon: '🐒', used: false, discarded: false } ]; p2SelectedDeck = JSON.parse(JSON.stringify(p1SelectedDeck)); document.getElementById('lives-display').style.display = 'none'; document.getElementById('p1-label').innerText = 'Aprendiz'; document.getElementById('cpu-label').innerText = 'Maestro'; document.getElementById('screen-menu').classList.remove('active'); document.getElementById('screen-game').classList.add('active'); startMusicContext('GAME'); startNewMatch(); }
+        
         function startStoryMode() { gameMode = 'STORY'; matchFormat = 'BO3'; currentStage = 1; storyLives = 2; document.getElementById('p1-label').innerText = 'Jugador'; document.getElementById('lives-counter').innerText = storyLives; document.getElementById('lives-display').style.display = 'inline'; showStoryIntroModal(1); }
+        function resumeStoryMode() { 
+            document.getElementById('p1-label').innerText = 'Jugador'; document.getElementById('cpu-label').innerText = `Pastor #${currentStage}`;
+            document.getElementById('lives-counter').innerText = storyLives; document.getElementById('lives-display').style.display = 'inline'; 
+            document.getElementById('screen-menu').classList.remove('active'); document.getElementById('screen-game').classList.add('active');
+            startMusicContext('GAME');
+            updateScoreBoard();
+            
+            // Refrescar UI sin re-resetear el tablero
+            document.getElementById('btn-cancel-joker-target').style.display = 'none'; document.getElementById('btn-cancel-abuela-target').style.display = 'none'; document.getElementById('btn-cancel-perro-target').style.display = 'none'; document.getElementById('btn-trash-joker').style.display = 'none'; document.getElementById('btn-trash-abuela').style.display = 'none'; document.getElementById('btn-trash-perro').style.display = 'none'; document.getElementById('btn-accept').style.display = 'none'; document.getElementById('btn-next-round').style.display = 'none'; document.getElementById('btn-restart').style.display = 'none'; document.getElementById('btn-tutorial-next-step').style.display = 'none'; document.getElementById('btn-battle-log').style.display = 'none';
+            
+            if (gameState === 'WAITING_ACCEPT') { finishPlacementPhase(); }
+            else if (gameState === 'RESOLVED') {
+                // Si se cerró estando en pantalla de victoria/derrota, forzamos mostrar los botones correctos
+                let winsNeeded = (matchFormat === 'BO3') ? 2 : 1;
+                if (winsPlayer >= winsNeeded || winsCPU >= winsNeeded) { handleMatchEnd(winsPlayer >= winsNeeded ? 'player' : 'cpu'); }
+                else { document.getElementById('btn-next-round').style.display = 'inline-block'; }
+            }
+            else { 
+                updateCounterUI(); renderBoard(); renderHand(); 
+                document.getElementById('status-msg').innerText = "Partida reanudada. ¡Tu turno!";
+                if (currentTurn === 'cpu') passTurnAfterMove();
+                else checkAutomaticPrompts();
+            }
+        }
+
         function showStoryIntroModal(stage) { storyModalState = 'INTRO'; playEncounterMusic(); document.getElementById('story-title').innerText = `Desafío ${stage}/6: Pastor Envidioso #${stage}`; document.getElementById('story-text').innerText = storyIntroTexts[stage]; document.getElementById('btn-story-continue').innerText = "¡Configurar Rebaño!"; document.getElementById('story-modal').style.display = 'flex'; }
-        function acceptStoryModalStep() { document.getElementById('story-modal').style.display = 'none'; if (storyModalState === 'INTRO') { document.getElementById('cpu-label').innerText = `Pastor #${currentStage}`; openDeckBuilder('p1', () => { p2SelectedDeck = generateCpuSmartDeck(); document.getElementById('screen-menu').classList.remove('active'); document.getElementById('screen-game').classList.add('active'); startMusicContext('GAME'); startNewMatch(); }); } else if (storyModalState === 'VICTORY') { currentStage++; showStoryIntroModal(currentStage); } else if (storyModalState === 'EPILOGUE') { goToMenu(); } }
+        function acceptStoryModalStep() { 
+            document.getElementById('story-modal').style.display = 'none'; 
+            if (storyModalState === 'INTRO') { 
+                document.getElementById('cpu-label').innerText = `Pastor #${currentStage}`; 
+                openDeckBuilder('p1', () => { 
+                    p2SelectedDeck = generateCpuSmartDeck(); 
+                    document.getElementById('screen-menu').classList.remove('active'); document.getElementById('screen-game').classList.add('active'); 
+                    startMusicContext('GAME'); startNewMatch(); 
+                }); 
+            } else if (storyModalState === 'VICTORY') { 
+                currentStage++; saveStoryProgress(); showStoryIntroModal(currentStage); 
+            } else if (storyModalState === 'EPILOGUE') { 
+                goToMenu(); 
+            } 
+        }
         function showUnlockModal(cardType) { sfxVictoryFanfare(); const card = cardLibraryData.find(c => c.type === cardType); document.getElementById('unlock-card-icon').innerText = card.icon; document.getElementById('unlock-card-name').innerText = card.name; document.getElementById('unlock-card-desc').innerText = card.desc; document.getElementById('unlock-card-terrain').innerText = `Terreno: ${card.terrain}`; document.getElementById('unlock-card-max').innerText = `Máx en mano: ${card.max}`; document.getElementById('unlock-modal').style.display = 'flex'; }
         function acceptUnlockModal() { document.getElementById('unlock-modal').style.display = 'none'; showStoryVictoryModal(); }
         function openModal() { document.getElementById('rules-modal').style.display = 'flex'; }
@@ -1528,12 +1646,10 @@
         function initGeometry() { boardTiles = []; let id = 0; for (let u = 0; u < 3; u++) { for (let v = 0; v < 3; v++) { let p1 = getGridVertex(u, v); let p2 = getGridVertex(u + 1, v); let p3 = getGridVertex(u + 1, v + 1); let p4 = getGridVertex(u, v + 1); boardTiles.push({ id: id++, dir: 'D', points: [p1, p2, p4], color: null, card: null }); boardTiles.push({ id: id++, dir: 'U', points: [p2, p3, p4], color: null, card: null }); } } }
         function buildAdjacencyMap() { adjacencyMap = []; for (let i = 0; i < boardTiles.length; i++) { let target = boardTiles[i]; let list = []; for (let j = 0; j < boardTiles.length; j++) { if (i === j) continue; let other = boardTiles[j]; let touches = target.points.some(p1 => other.points.some(p2 => Math.hypot(p1.x - p2.x, p1.y - p2.y) < 0.1)); if (touches) list.push(j); } adjacencyMap.push(list); } }
         
-        // --- FUNCIÓN EXPLÍCITA Y ROBUSTA DE CARTAS JUGABLES ---
         function hasPlayableCards(owner) { 
             let hand = (owner === 'cpu') ? cpuHand : playerHand; 
             let emptyTiles = boardTiles.filter(t => t.card === null); 
             
-            // Busca cualquier carta estándar (no opcional) que tenga un hueco válido libre
             let hasStandardPlayable = hand.some(c => { 
                 if (c.used || c.type === 'comodin' || c.type === 'abuela' || c.type === 'perro') return false; 
                 return emptyTiles.some(t => isValidPlacement(c, t)); 
@@ -1570,6 +1686,7 @@
             boardTiles.forEach((tile, i) => { tile.color = colors[i]; tile.card = null; });
             playerHand = JSON.parse(JSON.stringify(p1SelectedDeck)); cpuHand = JSON.parse(JSON.stringify(p2SelectedDeck));
             updateCounterUI(); renderBoard(); renderHand(); if (gameMode === 'TUTORIAL') showTutorialModal();
+            saveStoryProgress(); // Guardado automático
         }
 
         function shuffleArray(arr) { for (let i = arr.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [arr[i], arr[j]] = [arr[j], arr[i]]; } }
@@ -1588,7 +1705,6 @@
                 
                 let tileClass = `tile ${tile.color}`;
 
-                // VERIFICADOR DE CASILLAS VÁLIDAS PARA EL HIGHLIGHT
                 let isValidTarget = false;
                 
                 if (gameMode === 'TUTORIAL' && tutorialStep < tutorialSequence.length) {
@@ -1766,7 +1882,6 @@
             discardPerroAndProceed();
         }
         
-        // --- AQUÍ ESTÁ LA NUEVA FUNCIÓN PARA DESCARTAR EL COMODÍN A MITAD DE TURNO ---
         function discardJokerFromHand() {
             document.getElementById('btn-cancel-joker-target').style.display = 'none';
             document.getElementById('btn-trash-joker').style.display = 'none';
@@ -1787,10 +1902,15 @@
             
             if (!hasPlayableCards(currentTurn)) {
                  if (!checkAutomaticPrompts()) {
-                     passTurnAfterMove();
+                     if (isJokerPhase) {
+                         advanceOptionalCheckSequence();
+                     } else {
+                         passTurnAfterMove();
+                     }
                  }
             } else {
                  document.getElementById('status-msg').innerText = "Comodín descartado. Selecciona otra carta de tu mano.";
+                 saveStoryProgress(); // Guardado automático
             }
         }
         
@@ -1967,6 +2087,8 @@
         function confirmPlacement(faceUp) { document.getElementById('choice-modal').style.display = 'none'; sfxPlaceCard(); let activeHand = getLocalPlayerHand(); const card = activeHand[selectedCardIndex]; const tile = pendingTile; let cardOwner = (gameMode === 'ONLINE') ? myRole : currentTurn; tile.card = { owner: cardOwner, type: card.type, icon: card.icon, color: card.color, faceUp: faceUp, revealed: false, isDisguised: true }; if (cardOwner === 'player') { if (faceUp) playerFaceUpCount++; else playerFaceDownCount++; } else { if (faceUp) cpuFaceUpCount++; else cpuFaceDownCount++; } card.used = true; if (gameMode === 'ONLINE') sendNetMsg({ type: 'MOVE_PLACEMENT', cardIdx: selectedCardIndex, tileId: tile.id, faceUp: faceUp }); selectedCardIndex = null; pendingTile = null; document.getElementById('btn-cancel-perro-target').style.display = 'none'; document.getElementById('btn-trash-perro').style.display = 'none'; updateCounterUI(); renderBoard(); renderHand(); passTurnAfterMove(); }
 
         function passTurnAfterMove() {
+            saveStoryProgress(); // Autoguardado después de colocar carta
+            
             if (gameMode === 'TUTORIAL') { 
                 document.getElementById('btn-tutorial-next-step').style.display = 'inline-block';
                 document.getElementById('status-msg').innerText = "Revisa el tablero y pulsa Continuar Tutorial ➡️";
@@ -1977,7 +2099,11 @@
             let cpuHasNormal = hasPlayableCards('cpu');
             
             if (!playerHasNormal && !cpuHasNormal) { 
-                startOptionalCheckPhase(); 
+                if (!isJokerPhase) {
+                    startOptionalCheckPhase(); 
+                } else {
+                    finishPlacementPhase();
+                }
                 return; 
             }
             
@@ -2068,7 +2194,41 @@
             passTurnAfterMove();
         }
 
-        function minimaxSearch(depth, alpha, beta, isMaximizing) { if (depth === 0 || (!hasPlayableCards('player') && !hasPlayableCards('cpu'))) return { score: evaluateAdvancedBoardState() }; let bestScore = isMaximizing ? -Infinity : Infinity; let bestMove = null; let possibleMoves = generateLegalMoves(isMaximizing ? 'cpu' : 'player'); if (possibleMoves.length === 0) return { score: evaluateAdvancedBoardState() }; for (let move of possibleMoves) { applySimulatedMove(move, isMaximizing ? 'cpu' : 'player'); let result = minimaxSearch(depth - 1, alpha, beta, !isMaximizing); undoSimulatedMove(move, isMaximizing ? 'cpu' : 'player'); if (isMaximizing) { if (result.score > bestScore) { bestScore = result.score; bestMove = move; } alpha = Math.max(alpha, bestScore); } else { if (result.score < bestScore) { bestScore = result.score; bestMove = move; } beta = Math.min(beta, bestScore); } if (beta <= alpha) break; } return { score: bestScore, move: bestMove }; }
+        function minimaxSearch(depth, alpha, beta, isMaximizing) { 
+            if (depth <= 0 || (!hasPlayableCards('player') && !hasPlayableCards('cpu'))) {
+                return { score: evaluateAdvancedBoardState() }; 
+            }
+            
+            let possibleMoves = generateLegalMoves(isMaximizing ? 'cpu' : 'player'); 
+            if (possibleMoves.length === 0) {
+                return { score: evaluateAdvancedBoardState() }; 
+            }
+
+            let bestScore = isMaximizing ? -Infinity : Infinity; 
+            let bestMove = null; 
+
+            for (let move of possibleMoves) { 
+                applySimulatedMove(move, isMaximizing ? 'cpu' : 'player'); 
+                let result = minimaxSearch(depth - 1, alpha, beta, !isMaximizing); 
+                undoSimulatedMove(move, isMaximizing ? 'cpu' : 'player'); 
+                
+                if (isMaximizing) { 
+                    if (result.score > bestScore) { 
+                        bestScore = result.score; 
+                        bestMove = move; 
+                    } 
+                    alpha = Math.max(alpha, bestScore); 
+                } else { 
+                    if (result.score < bestScore) { 
+                        bestScore = result.score; 
+                        bestMove = move; 
+                    } 
+                    beta = Math.min(beta, bestScore); 
+                } 
+                if (beta <= alpha) break; 
+            } 
+            return { score: bestScore, move: bestMove }; 
+        }
         
         function generateLegalMoves(owner) { 
             let moves = []; 
@@ -2238,7 +2398,7 @@
                     }
                 }
                 if (card && card.type === 'perro') {
-                    if (card.owner === 'cpu') score -= 30; // Castigo de -3 puntos
+                    if (card.owner === 'cpu') score -= 30; 
                     else score += 30;
                 }
             }); 
@@ -2293,16 +2453,14 @@
         function cancelPerroTargetSelection() { document.getElementById('btn-cancel-perro-target').style.display = 'none'; document.getElementById('btn-trash-perro').style.display = 'none'; selectedCardIndex = null; gameState = 'PLACEMENT'; renderHand(); renderBoard(); if (isJokerPhase) { if (gameMode === 'ONLINE') sendNetMsg({ type: 'DISCARD_PERRO' }); advanceOptionalCheckSequence(); } else { document.getElementById('status-msg').innerText = "Perro cancelado. Selecciona otra carta de tu mano."; } }
         
         function discardJokerAndProceed() { document.getElementById('joker-prompt-modal').style.display = 'none'; let activeHand = getLocalPlayerHand(); let joker = activeHand.find(c => c.type === 'comodin'); if (joker) { joker.used = true; joker.discarded = true; } if (gameMode === 'ONLINE') sendNetMsg({ type: 'JOKER_PROMPT_DONE', action: 'discard' }); advanceOptionalCheckSequence(); }
-        // Se ha borrado discardJokerFromHand que existía aquí abajo llamando erróneamente a discardJokerAndProceed().
 
-        function finishPlacementPhase() { gameState = 'WAITING_ACCEPT'; currentTurn = 'player'; document.getElementById('btn-cancel-joker-target').style.display = 'none'; document.getElementById('btn-cancel-abuela-target').style.display = 'none'; document.getElementById('btn-cancel-perro-target').style.display = 'none'; document.getElementById('btn-trash-joker').style.display = 'none'; document.getElementById('btn-trash-abuela').style.display = 'none'; document.getElementById('btn-trash-perro').style.display = 'none'; document.getElementById('status-msg').innerText = "Fase completada. Presiona Aceptar para entrar en Batalla."; document.getElementById('btn-accept').style.display = 'inline-block'; }
+        function finishPlacementPhase() { gameState = 'WAITING_ACCEPT'; currentTurn = 'player'; document.getElementById('btn-cancel-joker-target').style.display = 'none'; document.getElementById('btn-cancel-abuela-target').style.display = 'none'; document.getElementById('btn-cancel-perro-target').style.display = 'none'; document.getElementById('btn-trash-joker').style.display = 'none'; document.getElementById('btn-trash-abuela').style.display = 'none'; document.getElementById('btn-trash-perro').style.display = 'none'; document.getElementById('status-msg').innerText = "Fase completada. Presiona Aceptar para entrar en Batalla."; document.getElementById('btn-accept').style.display = 'inline-block'; saveStoryProgress(); }
 
         function resolveRound() {
             if(gameTimerInterval) clearInterval(gameTimerInterval);
             gameState = 'RESOLVED'; document.getElementById('btn-accept').style.display = 'none'; sfxRevealCards();
             boardTiles.forEach(tile => { if (tile.card) tile.card.revealed = true; }); renderBoard(); document.getElementById('status-msg').innerText = "Revelando cartas en juego...";
             setTimeout(() => {
-                // FASE 1: PASTORES
                 let lobosToRemove = []; 
                 boardTiles.forEach(tile => { 
                     if (tile.card && tile.card.type === 'pastor') { 
@@ -2316,7 +2474,6 @@
                     } 
                 });
                 processEliminationQueue(lobosToRemove, 0, () => {
-                    // FASE 2: LOBOS ALFA SOBRE PERROS
                     let perrosToRemove = [];
                     boardTiles.forEach(tile => {
                         if (tile.card && tile.card.type === 'alfa') {
@@ -2328,7 +2485,6 @@
                         }
                     });
                     processEliminationQueue(perrosToRemove, 0, () => {
-                        // FASE 3: LOBOS SOBRE OVEJAS
                         let ovejasToRemove = []; 
                         boardTiles.forEach(tile => { 
                             if (tile.card && (tile.card.type === 'oveja' || tile.card.type === 'cabra')) { 
@@ -2362,7 +2518,7 @@
                 else if (targetTile.card.type === 'perro') typeText = "Perro 🐕";
 
                 let causeText = "eliminada por el Lobo 🐺";
-                if (targetTile.card.type === 'lobo' || targetTile.card.type === 'alfa') causeText = "eliminado por el Pastor 👨‍🌾";
+                if (targetTile.card.type === 'lobo' || targetTile.card.type === 'alfa') causeText = "eliminado por el Pastor 👨‍‍🌾";
                 else if (targetTile.card.type === 'perro') causeText = "eliminado por el Lobo Alfa 🐉";
                 else if (targetTile.card.type === 'cabra') causeText = "eliminada por el Lobo";
                 
@@ -2447,7 +2603,12 @@
             document.getElementById('btn-battle-log').style.display = 'inline-block';
 
             if (isMatchOver) { handleMatchEnd(roundWinner); } 
-            else { if (winsPlayer === winsCPU && winsPlayer === winsNeeded - 1) { document.getElementById('btn-next-round').innerText = "Ronda de desempate"; } else { document.getElementById('btn-next-round').innerText = "Siguiente Ronda"; } document.getElementById('btn-next-round').style.display = 'inline-block'; if (gameMode === 'ONLINE' && myRole === 'cpu') { document.getElementById('status-msg').innerText += " | Esperando al Anfitrión..."; document.getElementById('btn-next-round').style.display = 'none'; } }
+            else { 
+                if (winsPlayer === winsCPU && winsPlayer === winsNeeded - 1) { document.getElementById('btn-next-round').innerText = "Ronda de desempate"; } else { document.getElementById('btn-next-round').innerText = "Siguiente Ronda"; } 
+                document.getElementById('btn-next-round').style.display = 'inline-block'; 
+                if (gameMode === 'ONLINE' && myRole === 'cpu') { document.getElementById('status-msg').innerText += " | Esperando al Anfitrión..."; document.getElementById('btn-next-round').style.display = 'none'; } 
+                saveStoryProgress(); 
+            }
         }
 
         function handleMatchEnd(finalWinner, isTimeOut = false) {
@@ -2475,12 +2636,23 @@
                     } else if (currentStage === 4) {
                         showUnlockModal('perro');
                     } else { 
-                        if (currentStage >= 6) sfxGrandFinalFanfare(); else sfxVictoryFanfare(); 
+                        if (currentStage >= 6) { sfxGrandFinalFanfare(); localStorage.removeItem('theFlockSave'); } else { sfxVictoryFanfare(); } 
                         showStoryVictoryModal(); 
                     } 
+                    saveStoryProgress();
                     return; 
                 } 
-                else { storyLives--; document.getElementById('lives-counter').innerText = storyLives; if (storyLives <= 0) { document.getElementById('status-msg').innerText = "¡Te has quedado sin vidas!"; setTimeout(() => { alert("Has perdido tus 2 vidas. Volviendo al Menú Principal..."); goToMenu(); }, 1800); } else { document.getElementById('btn-restart').style.display = 'inline-block'; document.getElementById('btn-restart').innerText = "Reintentar Fase"; } }
+                else { 
+                    storyLives--; document.getElementById('lives-counter').innerText = storyLives; 
+                    if (storyLives <= 0) { 
+                        document.getElementById('status-msg').innerText = "¡Te has quedado sin vidas!"; 
+                        localStorage.removeItem('theFlockSave');
+                        setTimeout(() => { alert("Has perdido tus 2 vidas. Volviendo al Menú Principal..."); goToMenu(); }, 1800); 
+                    } else { 
+                        document.getElementById('btn-restart').style.display = 'inline-block'; document.getElementById('btn-restart').innerText = "Reintentar Fase"; 
+                        saveStoryProgress();
+                    } 
+                }
             } else if (gameMode === 'TUTORIAL') { document.getElementById('btn-restart').innerText = "🏠 Volver al Menú"; document.getElementById('btn-restart').style.display = 'inline-block'; setTimeout(showTutorialEpilogue, 1500); } 
             else { document.getElementById('btn-restart').style.display = 'inline-block'; }
         }
