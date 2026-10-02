@@ -1,0 +1,2495 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>The Flock: Pastores y Endogamia - V3.8 Balance Fino</title>
+    
+    <!-- LIBRERÍA MQTT.JS PARA WEBSOCKETS PÚBLICOS -->
+    <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+
+    <style>
+        :root {
+            --bg-gradient: radial-gradient(circle at 50% 20%, #2a1f18 0%, #120c08 60%, #050302 100%);
+            --card-bg: rgba(30, 20, 14, 0.85);
+            --card-border: rgba(184, 134, 11, 0.25);
+            --accent-gold: #f3c77c;
+            --accent-green: #2ecc71;
+            --accent-red: #e74c3c;
+            --accent-blue: #3498db;
+            --accent-purple: #9b59b6;
+            --text-main: #f0e6d2;
+            --text-muted: #b3a290;
+            --glass-shadow: 0 12px 32px 0 rgba(0, 0, 0, 0.6);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            user-select: none;
+            -webkit-user-select: none;
+            -webkit-touch-callout: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            background: var(--bg-gradient);
+            color: var(--text-main);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: space-between;
+            min-height: 100vh;
+            padding: 12px;
+            overflow-x: hidden;
+            touch-action: auto; 
+        }
+
+        .screen {
+            display: none;
+            width: 100%;
+            max-width: 440px;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            flex-grow: 1;
+        }
+
+        .screen.active {
+            display: flex;
+        }
+
+        .menu-card {
+            background: var(--card-bg);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid var(--card-border);
+            border-radius: 24px;
+            padding: 35px 22px;
+            text-align: center;
+            box-shadow: var(--glass-shadow);
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .menu-title {
+            font-size: 2.8rem;
+            color: var(--accent-gold);
+            margin-bottom: 6px;
+            font-weight: 900;
+            letter-spacing: -0.5px;
+            text-shadow: 0 4px 12px rgba(0,0,0,0.5);
+        }
+
+        .menu-subtitle {
+            font-size: 0.95rem;
+            color: var(--text-muted);
+            margin-bottom: 30px;
+            font-style: italic;
+            line-height: 1.4;
+            padding: 0 10px;
+        }
+
+        .menu-buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            width: 100%;
+        }
+
+        .btn-menu {
+            padding: 16px 18px;
+            font-size: 1rem;
+            font-weight: 700;
+            border-radius: 14px;
+            cursor: pointer;
+            border: 1px solid rgba(255,255,255,0.08);
+            background: rgba(255, 255, 255, 0.05);
+            color: var(--text-main);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            transition: all 0.2s cubic-bezier(0.25, 0.8, 0.25, 1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .btn-menu:active {
+            transform: scale(0.97);
+        }
+
+        .btn-menu-tutorial { background: linear-gradient(135deg, #1976d2 0%, #0d47a1 100%); color: #ffffff; border-color: rgba(33, 150, 243, 0.5); }
+        .btn-menu-single { background: linear-gradient(135deg, #16a085 0%, #0e6655 100%); color: #ffffff; border-color: rgba(26, 188, 156, 0.5); }
+        .btn-menu-quick { background: linear-gradient(135deg, #f39c12 0%, #d35400 100%); color: #ffffff; border-color: rgba(243, 156, 18, 0.5); }
+        .btn-menu-story { background: linear-gradient(135deg, #802a1b 0%, #5c1810 100%); color: #ffffff; border-color: rgba(255, 94, 94, 0.4); }
+        .btn-menu-time { background: linear-gradient(135deg, #c0392b 0%, #8e44ad 100%); color: #ffffff; border-color: rgba(192, 57, 43, 0.5); }
+        .btn-menu-multi-group { background: linear-gradient(135deg, #d35400 0%, #a04000 100%); color: #ffffff; border-color: rgba(230, 126, 34, 0.5); }
+        .btn-menu-multi { background: linear-gradient(135deg, #1c4d22 0%, #113315 100%); color: #ffffff; border-color: rgba(46, 204, 113, 0.4); }
+        .btn-menu-online { background: linear-gradient(135deg, #4a148c 0%, #311b92 100%); color: #ffffff; border-color: rgba(155, 89, 182, 0.5); }
+        .btn-menu-library { background: linear-gradient(135deg, #2c3e50 0%, #1a252f 100%); color: #ffffff; border-color: rgba(52, 73, 94, 0.5); }
+        .btn-menu-rules { background: linear-gradient(135deg, #4527a0 0%, #283593 100%); color: #ffffff; border-color: rgba(103, 58, 183, 0.5); }
+
+        header {
+            width: 100%;
+            max-width: 440px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px; 
+            justify-content: center;
+            align-items: center;
+            padding: 12px 14px;
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 18px;
+            box-shadow: var(--glass-shadow);
+            margin-bottom: 8px;
+        }
+
+        .score-board {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-wrap: wrap;
+            gap: 14px;
+            font-weight: 700;
+            font-size: 0.95rem;
+            width: 100%;
+        }
+
+        .header-controls {
+            display: flex;
+            justify-content: center;
+            flex-wrap: wrap;
+            gap: 8px;
+            width: 100%;
+        }
+
+        .format-badge {
+            background: rgba(255, 255, 255, 0.1);
+            color: var(--accent-gold);
+            padding: 4px 8px;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            border: 1px solid rgba(243, 199, 124, 0.3);
+            text-align: center;
+        }
+
+        .score-player { color: var(--accent-blue); }
+        .score-cpu { color: var(--accent-red); }
+        .lives-count { color: #ff4757; }
+
+        .btn {
+            background: rgba(255,255,255,0.06);
+            color: var(--accent-gold);
+            border: 1px solid rgba(243, 199, 124, 0.2);
+            padding: 7px 11px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: 700;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+            transition: all 0.2s;
+            font-size: 0.78rem;
+        }
+
+        .btn:active {
+            transform: scale(0.95);
+        }
+
+        .btn:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+            transform: none !important;
+        }
+
+        .btn-primary { background: linear-gradient(135deg, #27ae60 0%, #1e8449 100%); color: #fff; border-color: rgba(46, 204, 113, 0.4); }
+        .btn-cancel { background: rgba(255,255,255,0.1); color: #ddd; border-color: rgba(255,255,255,0.15); }
+
+        #status-msg {
+            font-size: 0.95rem;
+            font-weight: 700;
+            text-align: center;
+            margin: 6px 0;
+            min-height: 44px;
+            color: var(--accent-gold);
+            letter-spacing: 0.2px;
+            line-height: 1.4;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .board-container {
+            position: relative;
+            width: 100%;
+            max-width: 350px;
+            aspect-ratio: 1 / 1.32;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        svg#board {
+            width: 100%;
+            height: 100%;
+            filter: drop-shadow(0px 18px 24px rgba(0,0,0,0.85));
+        }
+
+        polygon.tile {
+            stroke: #261609;
+            stroke-width: 3.5;
+            stroke-linejoin: round;
+            cursor: pointer;
+            transition: stroke 0.3s, stroke-width 0.3s;
+        }
+
+        polygon.tile.red { fill: #7a2618; }
+        polygon.tile.black { fill: #1a381e; }
+
+        @keyframes pulseValid {
+            0% { stroke: var(--accent-green); stroke-width: 3.5; }
+            50% { stroke: #58d68d; stroke-width: 5.5; filter: drop-shadow(0 0 6px var(--accent-green)); }
+            100% { stroke: var(--accent-green); stroke-width: 3.5; }
+        }
+
+        polygon.valid-placement {
+            animation: pulseValid 1.5s infinite;
+            z-index: 10;
+        }
+
+        svg#board .card-group, 
+        svg#board .card-group * { pointer-events: none !important; }
+
+        .hand-container {
+            width: 100%;
+            max-width: 440px;
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            padding: 12px;
+            border-radius: 20px;
+            margin-top: 6px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            box-shadow: var(--glass-shadow);
+        }
+
+        .hand-title {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            margin-bottom: 8px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            display: flex;
+            gap: 15px;
+        }
+
+        @keyframes pulseHighlight {
+            0% { color: var(--accent-gold); text-shadow: 0 0 0px rgba(243,199,124,0); transform: scale(1); }
+            50% { color: #fff; text-shadow: 0 0 10px #fff, 0 0 20px var(--accent-gold); transform: scale(1.05); }
+            100% { color: var(--accent-gold); text-shadow: 0 0 0px rgba(243,199,124,0); transform: scale(1); }
+        }
+        
+        .highlight-counter {
+            animation: pulseHighlight 1.5s infinite;
+            display: inline-block;
+            font-weight: 900;
+        }
+
+        .cards-list {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 8px 10px;
+            width: 100%;
+            max-width: 320px;
+        }
+
+        .card-item {
+            width: 58px;
+            height: 52px;
+            position: relative;
+            cursor: pointer;
+            transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275), filter 0.3s;
+        }
+
+        .card-item.selected { transform: translateY(-6px) scale(1.1); filter: drop-shadow(0 0 10px var(--accent-gold)); }
+        .card-item.used { opacity: 0.2; cursor: not-allowed; transform: none !important; filter: grayscale(1) !important; }
+
+        .card-details-tab {
+            position: absolute;
+            top: -28px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(20, 15, 10, 0.95);
+            border: 1px solid var(--accent-gold);
+            color: var(--accent-gold);
+            font-size: 0.65rem;
+            padding: 5px 10px;
+            border-radius: 12px;
+            white-space: nowrap;
+            z-index: 50;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.6);
+            pointer-events: auto;
+            text-transform: none;
+            letter-spacing: normal;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.85);
+            backdrop-filter: blur(6px);
+            -webkit-backdrop-filter: blur(6px);
+            z-index: 100;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .choice-modal-content, .story-modal-content, .pass-modal-content {
+            background: #23160e;
+            padding: 24px;
+            border-radius: 20px;
+            text-align: center;
+            border: 1px solid var(--accent-gold);
+            max-width: 360px;
+            width: 100%;
+            box-shadow: var(--glass-shadow);
+        }
+
+        .choice-buttons { display: flex; flex-direction: column; gap: 10px; margin-top: 16px; }
+
+        .modal-content {
+            background: #1f140c;
+            padding: 26px;
+            border-radius: 20px;
+            max-width: 460px;
+            width: 100%;
+            max-height: 85vh;
+            overflow-y: auto;
+            border: 1px solid var(--card-border);
+            box-shadow: var(--glass-shadow);
+        }
+
+        .modal-content h2 { margin-bottom: 14px; color: var(--accent-gold); font-size: 1.35rem; }
+        .modal-content p, .modal-content ul { font-size: 0.92rem; line-height: 1.55; color: var(--text-main); margin-bottom: 12px; }
+        .modal-content ul { padding-left: 18px; }
+        .modal-content li { margin-bottom: 6px; }
+
+        .rules-section {
+            background: rgba(0, 0, 0, 0.35);
+            border: 1px solid rgba(243, 199, 124, 0.18);
+            border-radius: 14px;
+            padding: 14px 16px;
+            margin-bottom: 16px;
+            text-align: left;
+        }
+        .rules-section h3 {
+            color: var(--accent-gold);
+            font-size: 1.05rem;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .close-btn { float: right; font-size: 1.5rem; font-weight: bold; color: var(--text-muted); cursor: pointer; }
+
+        /* DECK BUILDER STYLES */
+        .deck-builder-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin: 15px 0;
+            width: 100%;
+        }
+
+        .deck-card-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: rgba(0,0,0,0.3);
+            padding: 8px 12px;
+            border-radius: 12px;
+            border: 1px solid rgba(243, 199, 124, 0.15);
+        }
+
+        .deck-card-info {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-weight: bold;
+            font-size: 0.9rem;
+            cursor: pointer;
+            padding: 4px 6px;
+            border-radius: 8px;
+            flex-grow: 1;
+            margin-right: 10px;
+            transition: background 0.2s;
+        }
+        
+        .deck-card-info:active {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .deck-controls {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-counter {
+            width: 30px;
+            height: 30px;
+            border-radius: 8px;
+            font-size: 1.1rem;
+            font-weight: bold;
+            padding: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .counter-val {
+            font-size: 1rem;
+            font-weight: bold;
+            min-width: 20px;
+            text-align: center;
+            color: var(--accent-gold);
+        }
+
+        /* LIBRARY STYLES */
+        .lib-item {
+            display: flex;
+            align-items: flex-start;
+            background: rgba(0,0,0,0.4);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 12px;
+            padding: 14px;
+            gap: 14px;
+            text-align: left;
+            margin-bottom: 12px;
+        }
+        .lib-icon {
+            font-size: 2.2rem;
+            min-width: 45px;
+            text-align: center;
+        }
+        .lib-details {
+            flex-grow: 1;
+        }
+        .lib-details h4 {
+            color: var(--accent-gold);
+            margin-bottom: 6px;
+            font-size: 1.15rem;
+        }
+        .lib-details p {
+            font-size: 0.88rem;
+            line-height: 1.4;
+            color: var(--text-main);
+            margin-bottom: 8px;
+        }
+        .lib-limit {
+            font-size: 0.75rem;
+            color: var(--accent-blue);
+            background: rgba(52, 152, 219, 0.2);
+            padding: 3px 8px;
+            border-radius: 6px;
+            font-weight: bold;
+        }
+
+        /* TIMER STYLES */
+        #time-attack-container {
+            display: none; 
+            width: 100%; 
+            max-width: 440px; 
+            background: var(--card-bg); 
+            border: 1px solid var(--accent-red); 
+            padding: 10px; 
+            border-radius: 14px; 
+            margin-top: 6px; 
+            box-shadow: var(--glass-shadow); 
+            justify-content: space-around; 
+            align-items: center; 
+            font-size: 1.1rem;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- MENÚ PRINCIPAL -->
+    <div id="screen-menu" class="screen active">
+        <div class="menu-card">
+            <h1 class="menu-title">The Flock</h1>
+            <p class="menu-subtitle">"Pastores y Endogamia en las praderas del norte"</p>
+
+            <!-- VISTA PRINCIPAL -->
+            <div id="main-menu-view" class="menu-buttons">
+                <button class="btn-menu btn-menu-tutorial" id="btn-mode-tutorial">📖 Tutorial Guiado</button>
+                <button class="btn-menu btn-menu-single" id="btn-menu-single">👤 Un Jugador</button>
+                <button class="btn-menu btn-menu-multi-group" id="btn-menu-multi-group">👥 Multijugador</button>
+                <button class="btn-menu btn-menu-library" id="btn-mode-library">📚 Biblioteca de Cartas</button>
+                <button class="btn-menu btn-menu-rules" id="btn-menu-rules">📖 Reglas del Juego</button>
+                <button class="btn-menu" id="btn-menu-music" style="background: rgba(255, 255, 255, 0.08); border-color: rgba(255,255,255,0.15);">🔇 Música OFF</button>
+            </div>
+
+            <!-- VISTA UN JUGADOR -->
+            <div id="single-menu-view" class="menu-buttons" style="display:none;">
+                <button class="btn-menu btn-menu-quick" id="btn-mode-quick">⚡ Partida Rápida (VS CPU)</button>
+                <button class="btn-menu btn-menu-story" id="btn-mode-story">📜 Modo Historia</button>
+                <button class="btn-menu btn-menu-time" id="btn-mode-time-attack">⏱️ Contrarreloj VS CPU</button>
+                <button class="btn-menu btn-cancel" id="btn-back-single">↩️ Volver</button>
+            </div>
+
+            <!-- VISTA MULTIJUGADOR -->
+            <div id="multi-menu-view" class="menu-buttons" style="display:none;">
+                <button class="btn-menu btn-menu-multi" id="btn-mode-multi">👥 2 Jugadores (Local)</button>
+                <button class="btn-menu btn-menu-online" id="btn-mode-online">🌐 Multijugador Online</button>
+                <button class="btn-menu btn-cancel" id="btn-back-multi">↩️ Volver</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- PANTALLA DE JUEGO -->
+    <div id="screen-game" class="screen">
+        <header>
+            <div class="score-board">
+                <span id="match-format-badge" class="format-badge">Ronda Única</span>
+                <span class="score-player"><span id="p1-label">Jugador</span>: <span id="score-player">0</span></span>
+                <span class="score-cpu"><span id="cpu-label">CPU</span>: <span id="score-cpu">0</span></span>
+                <span id="lives-display" class="lives-count" style="display:none;">❤️ x<span id="lives-counter">2</span></span>
+            </div>
+            <div class="header-controls">
+                <button class="btn" id="btn-music">🔇 Música OFF</button>
+                <button class="btn" id="btn-rules">Reglas</button>
+                <button class="btn btn-cancel" id="btn-home">🏠 Menú</button>
+            </div>
+        </header>
+
+        <div id="status-msg">Selecciona una carta de tu mano</div>
+
+        <main>
+            <div class="board-container">
+                <svg id="board" viewBox="0 0 300 420"></svg>
+            </div>
+
+            <!-- CONTENEDOR TEMPORIZADOR EXCLUSIVO MODO CONTRARRELOJ -->
+            <div id="time-attack-container">
+                <span style="color: var(--accent-blue); font-weight:bold;">⏱ Tú: <span id="timer-player">20.0</span>s</span>
+                <span style="color: var(--accent-red); font-weight:bold;">🤖 CPU: <span id="timer-cpu">20.0</span>s</span>
+            </div>
+
+            <div class="hand-container">
+                <div class="hand-title">
+                    <span id="hand-owner-text">Tus Cartas</span>
+                    <span id="visibility-counter" style="color: var(--accent-gold); transition: all 0.3s;">Arriba: 0/4 | Abajo: 0/3</span>
+                </div>
+                <div class="cards-list" id="player-hand"></div>
+                <div style="margin-top: 10px; display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; width: 100%;">
+                    
+                    <button id="btn-tutorial-next-step" class="btn btn-menu-tutorial" style="display: none; width: 100%; max-width: 250px;">Continuar Tutorial ➡️</button>
+                    
+                    <button id="btn-cancel-joker-target" class="btn btn-cancel" style="display: none;">↩ Cancelar</button>
+                    <button id="btn-trash-joker" class="btn" style="display: none; border-color: #e74c3c; color: #e74c3c;">🗑️ Descartar</button>
+                    
+                    <button id="btn-cancel-abuela-target" class="btn btn-cancel" style="display: none;">↩️ Cancelar</button>
+                    <button id="btn-trash-abuela" class="btn" style="display: none; border-color: #e74c3c; color: #e74c3c;">🗑️ Descartar</button>
+                    
+                    <button id="btn-cancel-perro-target" class="btn btn-cancel" style="display: none;">↩️ Cancelar</button>
+                    <button id="btn-trash-perro" class="btn" style="display: none; border-color: #e74c3c; color: #e74c3c;">🗑️ Descartar</button>
+                    
+                    <button id="btn-accept" class="btn btn-primary" style="display: none;">Aceptar</button>
+                    <button id="btn-next-round" class="btn btn-menu-multi" style="display: none; border: 1px solid rgba(255,255,255,0.4);">Siguiente Ronda</button>
+                    <button id="btn-restart" class="btn btn-primary" style="display: none;">🏠 Volver al Menú</button>
+                    <button id="btn-battle-log" class="btn btn-menu-rules" style="display: none; border-color: var(--accent-blue); background: linear-gradient(135deg, #2980b9 0%, #2c3e50 100%); width: 100%; max-width: 250px; margin-top: 5px;">📜 Registro de Batalla</button>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- MODAL REGISTRO DE BATALLA -->
+    <div id="battle-log-modal" class="modal">
+        <div class="modal-content" style="max-width: 440px;">
+            <span class="close-btn" id="btn-close-battle-log">&times;</span>
+            <h2 style="text-align: center; margin-bottom: 18px; color: var(--accent-blue);">Registro de Batalla ⚔️</h2>
+            <ul id="battle-log-list" style="list-style-type: none; padding: 0; font-size: 0.9rem; color: var(--text-main);">
+                <!-- Entradas generadas por JS -->
+            </ul>
+        </div>
+    </div>
+
+    <!-- MODAL DE SELECCIÓN DE MANO (DECK BUILDER) -->
+    <div id="deck-modal" class="modal" style="z-index: 120;">
+        <div class="choice-modal-content" style="max-width: 380px;">
+            <h2 id="deck-builder-title" style="color: var(--accent-gold); margin-bottom: 6px; font-size: 1.3rem;">Diseña tu Mano</h2>
+            <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 10px;">Elige exactamente 7 cartas para la partida:</p>
+
+            <div class="deck-builder-grid">
+                <div class="deck-card-row" id="row-oveja">
+                    <div class="deck-card-info" data-type="oveja"><span>🐑 Oveja</span> <small style="color:var(--text-muted);">(máx. 3)</small></div>
+                    <div class="deck-controls">
+                        <button class="btn btn-counter" id="btn-sub-oveja">-</button>
+                        <span class="counter-val" id="count-oveja">0</span>
+                        <button class="btn btn-counter" id="btn-add-oveja">+</button>
+                    </div>
+                </div>
+                <div class="deck-card-row" id="row-lobo">
+                    <div class="deck-card-info" data-type="lobo"><span>🐺 Lobo</span> <small style="color:var(--text-muted);">(máx. 3)</small></div>
+                    <div class="deck-controls">
+                        <button class="btn btn-counter" id="btn-sub-lobo">-</button>
+                        <span class="counter-val" id="count-lobo">0</span>
+                        <button class="btn btn-counter" id="btn-add-lobo">+</button>
+                    </div>
+                </div>
+                <div class="deck-card-row" id="row-pastor">
+                    <div class="deck-card-info" data-type="pastor"><span>👨‍🌾 Pastor</span> <small style="color:var(--text-muted);">(máx. 1)</small></div>
+                    <div class="deck-controls">
+                        <button class="btn btn-counter" id="btn-sub-pastor">-</button>
+                        <span class="counter-val" id="count-pastor">0</span>
+                        <button class="btn btn-counter" id="btn-add-pastor">+</button>
+                    </div>
+                </div>
+                <div class="deck-card-row" id="row-piedra">
+                    <div class="deck-card-info" data-type="piedra"><span>🌑 Piedra</span> <small style="color:var(--text-muted);">(máx. 1)</small></div>
+                    <div class="deck-controls">
+                        <button class="btn btn-counter" id="btn-sub-piedra">-</button>
+                        <span class="counter-val" id="count-piedra">0</span>
+                        <button class="btn btn-counter" id="btn-add-piedra">+</button>
+                    </div>
+                </div>
+                <div class="deck-card-row" id="row-comodin">
+                    <div class="deck-card-info" data-type="comodin"><span>🐒 Comodín</span> <small style="color:var(--text-muted);">(máx. 1)</small></div>
+                    <div class="deck-controls">
+                        <button class="btn btn-counter" id="btn-sub-comodin">-</button>
+                        <span class="counter-val" id="count-comodin">0</span>
+                        <button class="btn btn-counter" id="btn-add-comodin">+</button>
+                    </div>
+                </div>
+                <div class="deck-card-row" id="row-cabra" style="display: none;">
+                    <div class="deck-card-info" data-type="cabra"><span>🐐 La Cabra</span> <small style="color:var(--text-muted);">(máx. 1)</small></div>
+                    <div class="deck-controls">
+                        <button class="btn btn-counter" id="btn-sub-cabra">-</button>
+                        <span class="counter-val" id="count-cabra">0</span>
+                        <button class="btn btn-counter" id="btn-add-cabra">+</button>
+                    </div>
+                </div>
+                <div class="deck-card-row" id="row-alfa" style="display: none;">
+                    <div class="deck-card-info" data-type="alfa"><span>🐉 Lobo Alfa</span> <small style="color:var(--text-muted);">(máx. 1)</small></div>
+                    <div class="deck-controls">
+                        <button class="btn btn-counter" id="btn-sub-alfa">-</button>
+                        <span class="counter-val" id="count-alfa">0</span>
+                        <button class="btn btn-counter" id="btn-add-alfa">+</button>
+                    </div>
+                </div>
+                <div class="deck-card-row" id="row-abuela" style="display: none;">
+                    <div class="deck-card-info" data-type="abuela"><span>👵 La Abuela</span> <small style="color:var(--text-muted);">(máx. 1)</small></div>
+                    <div class="deck-controls">
+                        <button class="btn btn-counter" id="btn-sub-abuela">-</button>
+                        <span class="counter-val" id="count-abuela">0</span>
+                        <button class="btn btn-counter" id="btn-add-abuela">+</button>
+                    </div>
+                </div>
+                <div class="deck-card-row" id="row-perro" style="display: none;">
+                    <div class="deck-card-info" data-type="perro"><span>🐕 El Perro</span> <small style="color:var(--text-muted);">(máx. 1)</small></div>
+                    <div class="deck-controls">
+                        <button class="btn btn-counter" id="btn-sub-perro">-</button>
+                        <span class="counter-val" id="count-perro">0</span>
+                        <button class="btn btn-counter" id="btn-add-perro">+</button>
+                    </div>
+                </div>
+            </div>
+
+            <div style="margin-bottom: 15px; font-weight: bold; font-size: 0.9rem;">
+                Total seleccionadas: <span id="deck-total-count" style="color: var(--accent-gold);">0</span> / 7
+            </div>
+
+            <div class="choice-buttons">
+                <button id="btn-confirm-deck" class="btn btn-primary" style="padding:12px; font-size:1rem;" disabled>¡Empezar Batalla!</button>
+                <button id="btn-cancel-deck" class="btn btn-cancel" style="padding:12px; font-size:1rem;">↩️ Cancelar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL INFO CARTA (DECK BUILDER Y PREVISUALIZACIÓN) -->
+    <div id="card-info-modal" class="modal" style="z-index: 130;">
+        <div class="choice-modal-content" style="max-width: 360px;">
+            <h2 style="color: var(--accent-gold); margin-bottom: 12px; font-size: 1.3rem;">Detalles de la Carta</h2>
+            <div class="lib-item" style="margin-bottom: 15px; background: rgba(0,0,0,0.6);">
+                <div class="lib-icon" id="info-card-icon"></div>
+                <div class="lib-details">
+                    <h4 id="info-card-name"></h4>
+                    <p id="info-card-desc"></p>
+                    <p style="font-size: 0.8rem; margin-top:4px; color:var(--text-muted);" id="info-card-terrain"></p>
+                    <span class="lib-limit" id="info-card-max"></span>
+                </div>
+            </div>
+            <button id="btn-close-info" class="btn btn-primary" style="width: 100%; padding: 12px;">Cerrar</button>
+        </div>
+    </div>
+
+    <!-- OTROS MODALES -->
+    <div id="unlock-modal" class="modal" style="z-index: 150;">
+        <div class="story-modal-content" style="max-width: 400px;">
+            <h2 style="color: var(--accent-gold); margin-bottom: 12px; font-size: 1.3rem;">¡Nueva Carta Desbloqueada!</h2>
+            <div id="unlock-card-details" class="lib-item" style="margin-bottom: 15px; background: rgba(0,0,0,0.6);">
+                <div class="lib-icon" id="unlock-card-icon"></div>
+                <div class="lib-details">
+                    <h4 id="unlock-card-name"></h4>
+                    <p id="unlock-card-desc"></p>
+                    <p style="font-size: 0.8rem; margin-top:4px; color:var(--text-muted);" id="unlock-card-terrain"></p>
+                    <span class="lib-limit" id="unlock-card-max"></span>
+                </div>
+            </div>
+            <p style="color: var(--text-main); font-size: 0.95rem; margin-bottom: 20px;">Estará disponible en la creación de mazo a partir de la siguiente ronda.</p>
+            <button id="btn-unlock-continue" class="btn btn-primary" style="width: 100%; padding: 12px;">Continuar Aventura</button>
+        </div>
+    </div>
+
+    <div id="library-modal" class="modal">
+        <div class="modal-content" style="max-width: 500px;">
+            <span class="close-btn" id="btn-close-library">&times;</span>
+            <h2 style="text-align: center; margin-bottom: 20px;">Biblioteca de Cartas</h2>
+            <div id="library-list" style="display: flex; flex-direction: column;"></div>
+        </div>
+    </div>
+
+    <div id="online-modal" class="modal">
+        <div class="choice-modal-content" style="max-width: 360px;">
+            <span class="close-btn" id="btn-close-online-modal">&times;</span>
+            <h2 style="color: var(--accent-gold); margin-bottom: 8px; font-size: 1.4rem;">🌐 Multijugador Online</h2>
+            <div id="online-menu-options" class="choice-buttons">
+                <button id="btn-online-create" class="btn btn-primary" style="padding:12px; font-size:0.95rem;">🏠 Crear Sala Online</button>
+                <button id="btn-online-join-view" class="btn" style="padding:12px; font-size:0.95rem;">🔗 Unirse a una Sala</button>
+            </div>
+            <div id="online-create-view" style="display:none; margin-top:10px;">
+                <p style="font-size:0.85rem; color:var(--text-muted);">Código de tu sala:</p>
+                <div id="online-room-code" style="font-size: 2.2rem; font-weight: 900; color: var(--accent-gold); letter-spacing: 4px; margin: 10px 0; background: rgba(0,0,0,0.4); padding: 10px; border-radius: 12px; border: 1px dashed var(--accent-gold);">----</div>
+                <p id="online-create-status" style="font-size:0.85rem; color: var(--accent-green); margin-bottom: 15px;">Conectando al servidor público...</p>
+                <button id="btn-cancel-create" class="btn btn-cancel" style="width:100%;">↩️ Volver</button>
+            </div>
+            <div id="online-join-view" style="display:none; margin-top:10px;">
+                <p style="font-size:0.88rem; color:var(--text-muted); margin-bottom:10px;">Introduce el código de 4 dígitos:</p>
+                <input type="text" id="online-code-input" maxlength="4" placeholder="Ej: 4829" style="width:100%; padding:12px; font-size:1.4rem; text-align:center; font-weight:bold; letter-spacing:4px; border-radius:12px; border:1px solid var(--accent-gold); background:rgba(0,0,0,0.6); color:#fff; text-transform:uppercase; margin-bottom:12px;">
+                <button id="btn-online-join-confirm" class="btn btn-primary" style="width:100%; padding:12px; font-size:1rem;">¡Unirse a la Batalla!</button>
+                <p id="online-join-status" style="font-size:0.82rem; color:#ff6666; margin-top:8px;"></p>
+                <button id="btn-cancel-join" class="btn btn-cancel" style="width:100%; margin-top:10px;">↩️ Volver</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="disconnect-modal" class="modal" style="z-index: 200;">
+        <div class="choice-modal-content">
+            <h3 style="color: var(--accent-gold); margin-bottom: 10px;">⚠ Rival Desconectado</h3>
+            <p id="disconnect-modal-desc" style="color: var(--text-main); font-size: 0.95rem; line-height: 1.4; margin-bottom: 20px;">El rival ha abandonado la partida o ha cerrado el juego.</p>
+            <div class="choice-buttons">
+                <button id="btn-close-disconnect-modal" class="btn btn-primary" style="padding:12px;">Entendido</button>
+                <button id="btn-disconnect-go-home" class="btn btn-cancel" style="padding:12px;">🏠 Ir al Menú</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="format-modal" class="modal" style="z-index: 110;">
+        <div class="choice-modal-content">
+            <h2 style="color: var(--accent-gold); margin-bottom: 12px; font-size: 1.4rem;">Formato de Partida</h2>
+            <p style="color: var(--text-main); font-size: 0.95rem; margin-bottom: 20px;">¿A cuántas rondas quieres jugar?</p>
+            <div class="choice-buttons">
+                <button id="btn-format-single" class="btn btn-primary" style="padding:12px; font-size:1rem;">Ronda Única</button>
+                <button id="btn-format-bo3" class="btn btn-menu-multi" style="padding:12px; font-size:1rem;">Al mejor de 3</button>
+                <button id="btn-cancel-format" class="btn btn-cancel" style="padding:12px; font-size:1rem;">↩️ Cancelar</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="story-modal" class="modal">
+        <div class="story-modal-content">
+            <h2 id="story-title" style="color: var(--accent-gold); margin-bottom: 12px; font-size: 1.3rem;">Fase 1</h2>
+            <p id="story-text" style="color: var(--text-main); font-size: 0.95rem; line-height: 1.5; margin-bottom: 20px; font-style: italic;"></p>
+            <button id="btn-story-continue" class="btn btn-primary" style="width: 100%; padding: 12px;">¡Configurar Rebaño!</button>
+        </div>
+    </div>
+
+    <div id="tutorial-modal" class="modal">
+        <div class="choice-modal-content">
+            <h2 id="tutorial-modal-title" style="color: var(--accent-gold); margin-bottom: 12px; font-size: 1.4rem;">Tutorial</h2>
+            <p id="tutorial-modal-text" style="color: var(--text-main); font-size: 0.95rem; line-height: 1.5; margin-bottom: 20px;"></p>
+            <button id="btn-tutorial-accept" class="btn btn-primary" style="width: 100%; padding: 12px; font-size: 1rem;">Entendido</button>
+        </div>
+    </div>
+
+    <div id="optional-prompt-modal" class="modal">
+        <div class="choice-modal-content">
+            <h3 style="color: var(--accent-gold); margin-bottom: 10px;">Cartas Opcionales</h3>
+            <p style="color: var(--text-main); font-size: 0.9rem; line-height: 1.4; margin-bottom: 15px;">Solo te quedan cartas opcionales (Comodín 🐒, Abuela 👵 o Perro 🐕). Ninguna es obligatoria. ¿Qué deseas hacer?</p>
+            <div class="choice-buttons">
+                <button id="btn-optional-review" class="btn btn-primary">Revisar Mano (Verlas 1 a 1 👁)</button>
+                <button id="btn-optional-discard" class="btn btn-cancel">Descartar Todas y Terminar 🛑</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="joker-prompt-modal" class="modal">
+        <div class="choice-modal-content">
+            <h3 style="color: var(--accent-gold); margin-bottom: 10px;">¿Usar Comodín 🐒?</h3>
+            <p id="joker-prompt-desc" style="color: var(--text-main); font-size: 0.9rem; line-height: 1.4; margin-bottom: 15px;">Aún conservas tu Comodín. Puedes seleccionar una de tus ovejas en el tablero para transformarla en Lobo o descartarlo.</p>
+            <div class="choice-buttons">
+                <button id="btn-use-joker" class="btn btn-primary">Usar Comodín (Elegir Oveja 🐒)</button>
+                <button id="btn-discard-joker" class="btn btn-cancel">Descartar y Pasar a Batalla ⚔️</button>
+            </div>
+        </div>
+    </div>
+    
+    <div id="abuela-prompt-modal" class="modal">
+        <div class="choice-modal-content">
+            <h3 style="color: var(--accent-gold); margin-bottom: 10px;">¿Usar La Abuela 👵?</h3>
+            <p id="abuela-prompt-desc" style="color: var(--text-main); font-size: 0.9rem; line-height: 1.4; margin-bottom: 15px;">La Abuela es tu última carta disponible. Puedes usarla para recuperar una carta o descartarla y terminar tu colocación.</p>
+            <div class="choice-buttons">
+                <button id="btn-use-abuela" class="btn btn-primary">Usar La Abuela (Elegir Carta 👵)</button>
+                <button id="btn-discard-abuela" class="btn btn-cancel">Descartar y Terminar 🛑</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="perro-prompt-modal" class="modal">
+        <div class="choice-modal-content">
+            <h3 style="color: var(--accent-gold); margin-bottom: 10px;">¿Usar El Perro 🐕?</h3>
+            <p id="perro-prompt-desc" style="color: var(--text-main); font-size: 0.9rem; line-height: 1.4; margin-bottom: 15px;">Aún conservas a tu Perro. Puedes colocarlo en una casilla roja para defender a las ovejas (resta 3 pts) o descartarlo.</p>
+            <div class="choice-buttons">
+                <button id="btn-use-perro" class="btn btn-primary">Usar El Perro (Elegir Casilla 🐕)</button>
+                <button id="btn-discard-perro" class="btn btn-cancel">Descartar y Terminar 🛑</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="finish-turn-modal" class="modal">
+        <div class="pass-modal-content">
+            <h2 id="finish-turn-title" style="color: var(--accent-gold); margin-bottom: 12px;">Carta Colocada</h2>
+            <p style="color: var(--text-main); font-size: 0.95rem; line-height: 1.5; margin-bottom: 20px;">Has colocado tu carta. Presiona el botón para finalizar tu turno de forma segura.</p>
+            <button id="btn-confirm-finish-turn" class="btn btn-primary" style="width: 100%; padding: 12px; font-size: 1rem;">Terminar Turno</button>
+        </div>
+    </div>
+
+    <div id="start-turn-modal" class="modal">
+        <div class="pass-modal-content">
+            <h2 id="start-turn-title" style="color: var(--accent-gold); margin-bottom: 12px;">¡Cambio de Jugador!</h2>
+            <p id="start-turn-desc" style="color: var(--text-main); font-size: 0.95rem; line-height: 1.5; margin-bottom: 20px;">Pasa el teléfono al siguiente jugador. ¡No mires la pantalla hasta tener el móvil en la mano!</p>
+            <button id="btn-start-next-player-turn" class="btn btn-primary" style="width: 100%; padding: 12px; font-size: 1rem;">Empezar Turno</button>
+        </div>
+    </div>
+
+    <div id="choice-modal" class="modal">
+        <div class="choice-modal-content">
+            <h3 style="color: var(--accent-gold); margin-bottom: 10px;">Visibilidad de la Carta</h3>
+            <p id="choice-desc" style="color: var(--text-muted); font-size: 0.9rem;"></p>
+            <div class="choice-buttons">
+                <button id="btn-face-up" class="btn btn-primary">Boca Arriba (Visible 👁️)</button>
+                <button id="btn-face-down" class="btn">Boca Abajo (Oculta 🙈)</button>
+                <button id="btn-cancel-choice" class="btn btn-cancel" style="margin-top: 5px;">↩ Volver / Elegir otra</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="rules-modal" class="modal">
+        <div class="modal-content">
+            <span class="close-btn" id="btn-close-modal">&times;</span>
+            <h2 style="text-align: center; margin-bottom: 18px;">Reglas del Juego 📜</h2>
+            
+            <div class="rules-section">
+                <h3>🎯 Objetivo y Puntuación</h3>
+                <p>En <strong>The Flock</strong>, tu meta es conseguir <strong>más puntos que tu rival al final de la partida</strong>.</p>
+                <ul>
+                    <li>🟢 <strong>Puntos positivos:</strong> Algunas cartas te darán puntos al final de la ronda si consiguen sobrevivir en el tablero.</li>
+                    <li>🔴 <strong>Penalizaciones:</strong> Otras cartas restan puntos simplemente por ponerlas en juego. ¡Piensa bien si te compensa usar su habilidad!</li>
+                </ul>
+            </div>
+            
+            <div class="rules-section">
+                <h3>🗺️ El Tablero y los Terrenos</h3>
+                <p>El tablero está formado por casillas de dos colores distintos: <strong>Verde (Césped)</strong> y <strong>Rojo (Tierra)</strong>.</p>
+                <ul>
+                    <li><strong>Restricción de Terreno:</strong> Muchas cartas solo se pueden colocar en su color correspondiente (por ejemplo, piezas de pasto en césped o depredadores en tierra).</li>
+                    <li><strong>Sin Restricción:</strong> Existen cartas flexibles que se pueden colocar en <strong>cualquier tipo de terreno</strong>.</li>
+                </ul>
+                <p style="margin-top: 8px; font-style: italic; color: var(--text-muted); font-size: 0.85rem;">(Consulta la <strong>Biblioteca de Cartas</strong> desde el menú principal para ver los límites y terrenos permitidos de cada pieza).</p>
+            </div>
+            
+            <div class="rules-section">
+                <h3>🔄 Fases de una Partida</h3>
+                <ol>
+                    <li style="margin-bottom:8px;"><strong>1. Preparación de Mano:</strong> Elige exactamente <strong>7 cartas</strong> para tu rebaño respetando los límites permitidos.</li>
+                    <li style="margin-bottom:8px;"><strong>2. Fase de Colocación (Por Turnos):</strong> Se van jugando las cartas una a una de forma pacífica. Puedes elegir jugarlas:
+                        <ul>
+                            <li><strong>Boca Arriba (👁):</strong> Es visible para todos. (Máximo 4 por jugador).</li>
+                            <li><strong>Boca Abajo (🙈):</strong> Oculta tu estrategia y engaña al rival. (Máximo 3 por jugador).</li>
+                        </ul>
+                    </li>
+                    <li style="margin-bottom:8px;"><strong>3. Cartas Especiales:</strong> Algunas cartas no se ponen directamente en el tablero. Tienen efectos especiales que se activan desde tu mano para recuperar piezas o transformar tus unidades en el último momento.</li>
+                    <li style="margin-bottom:8px;"><strong>4. Batalla Automática y Recuento:</strong> Cuando el tablero se llena, todas las cartas ocultas se revelan y sus habilidades interactúan solas (las defensas protegen, los atacantes eliminan y las piezas ágiles escapan). Tras el combate, ¡se cuentan los supervivientes y se decide al ganador!</li>
+                </ol>
+            </div>
+            
+            <div class="rules-section">
+                <h3>🎮 Modos de Juego</h3>
+                <p><strong>👤 Un Jugador:</strong></p>
+                <ul style="margin-bottom: 12px;">
+                    <li><strong>📖 Tutorial Guiado:</strong> Aprende la dinámica paso a paso con una partida de entrenamiento.</li>
+                    <li><strong>⚡ Partida Rápida:</strong> Enfréntate a la CPU en una partida tradicional.</li>
+                    <li><strong>⏱️ Contrarreloj:</strong> Partida rápida contra la CPU con tiempo límite. El reloj corre mientras piensas tu jugada.</li>
+                    <li><strong>📜 Modo Historia:</strong> Enfréntate a una serie de rivales con dificultad creciente, gestiona tus vidas y ve desbloqueando nuevas cartas para tu colección.</li>
+                </ul>
+                <p><strong>👥 Multijugador:</strong></p>
+                <ul>
+                    <li><strong>👥 2 Jugadores (Local):</strong> Juega con un amigo compartiendo el mismo dispositivo turno a turno.</li>
+                    <li><strong>🌐 Multijugador Online:</strong> Crea una sala con código privado o únete a la de un amigo para jugar en tiempo real a distancia.</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+    <script>
+        const L = 75;
+        const H = L * Math.sin(Math.PI / 3);
+        const ORIGIN_X = 150;
+        const ORIGIN_Y = 25;
+
+        const cardLibraryData = [
+            { type: 'oveja', icon: '🐑', name: 'Oveja', max: 3, terrain: 'Césped (Verde)', desc: 'La base de tu rebaño. Otorga +3 puntos si sobrevive al final de la partida. Es vulnerable a los lobos.' },
+            { type: 'lobo', icon: '🐺', name: 'Lobo', max: 3, terrain: 'Tierra (Roja)', desc: 'Depredador agresivo. Otorga +1 punto si sobrevive. Elimina a las ovejas enemigas adyacentes en la fase de combate.' },
+            { type: 'pastor', icon: '👨‍🌾', name: 'Pastor', max: 1, terrain: 'Cualquiera', desc: 'Defensor letal. Se puede colocar en cualquier casilla. Elimina a todos los lobos enemigos adyacentes antes de que ataquen.' },
+            { type: 'piedra', icon: '🌑', name: 'Piedra', max: 1, terrain: 'Césped (Verde)', desc: 'Señuelo inerte e indestructible. Ideal para colocar boca abajo y engañar al rival. Otorga +1 punto al final de la ronda por jugarla.' },
+            { type: 'comodin', icon: '🐒', name: 'Comodín', max: 1, terrain: 'N/A', desc: 'As en la manga. No se coloca en el tablero. Permite transformar una de tus ovejas expuestas en un Lobo justo antes de la batalla.' },
+            { type: 'cabra', icon: '🐐', name: 'La Cabra', max: 1, terrain: 'Césped (Verde)', desc: 'Se muestra al rival como Oveja. Si es atacada por un lobo, revelará su identidad y saltará a una casilla segura si la hay. Otorga +2 puntos si sobrevive.' },
+            { type: 'alfa', icon: '🐉', name: 'Lobo Alfa', max: 1, terrain: 'Cualquiera', desc: 'Protege a los lobos adyacentes de ser eliminados por el Pastor. Devora ovejas y cabras. Es vulnerable al Pastor.' },
+            { type: 'abuela', icon: '👵', name: 'La Abuela', max: 1, terrain: 'N/A', desc: 'No se coloca en el tablero. Permite recuperar una de tus cartas jugadas boca abajo devolviéndola a la mano. Resta 1 punto al final si se usa.' },
+            { type: 'perro', icon: '🐕', name: 'El Perro', max: 1, terrain: 'Tierra (Roja)', desc: 'Protector fiel. Las ovejas aliadas adyacentes requerirán 2 lobos enemigos para ser eliminadas. Resta 3 puntos. Solo se puede jugar BOCA ARRIBA. Eliminado por el Lobo Alfa.' }
+        ];
+
+        let gameMode = 'QUICK';
+        let matchFormat = 'SINGLE'; 
+        let pendingGameMode = ''; 
+        let currentStage = 1;
+        let storyLives = 2;
+        let storyModalState = 'INTRO';
+        let isJokerPhase = false;
+
+        let winsPlayer = 0; 
+        let winsCPU = 0;
+        let currentRoundNum = 1;
+
+        let boardTiles = [];
+        let playerHand = [];
+        let cpuHand = [];
+        let p1SelectedDeck = null;
+        let p2SelectedDeck = null;
+        let deckBuilderTarget = 'p1';
+        let sharedBoardColors = null;
+
+        let selectedCardIndex = null;
+        let pendingTile = null;
+        let currentTurn = 'player';
+        let gameState = 'PLACEMENT';
+
+        let playerFaceUpCount = 0;
+        let playerFaceDownCount = 0;
+        let cpuFaceUpCount = 0;
+        let cpuFaceDownCount = 0;
+        
+        let battleLogMessages = [];
+
+        let adjacencyMap = [];
+
+        // VARIABLES TIME ATTACK
+        let playerTime = 20.0;
+        let cpuTime = 20.0;
+        let gameTimerInterval = null;
+
+        const DECK_LIMITS = { oveja: 3, lobo: 3, pastor: 1, piedra: 1, comodin: 1, cabra: 1, alfa: 1, abuela: 1, perro: 1 };
+        let currentDeckCounts = { oveja: 0, lobo: 0, pastor: 0, piedra: 0, comodin: 0, cabra: 0, alfa: 0, abuela: 0, perro: 0 };
+
+        function getLocalPlayerHand() {
+            if (gameMode === 'ONLINE') return (myRole === 'player') ? playerHand : cpuHand;
+            else if (gameMode === 'MULTI') return (currentTurn === 'player') ? playerHand : cpuHand;
+            else return playerHand;
+        }
+
+        function getUnlockedCards() {
+            let base = ['oveja', 'lobo', 'pastor', 'piedra', 'comodin'];
+            if (gameMode !== 'STORY' && gameMode !== 'TUTORIAL') { 
+                base.push('cabra'); base.push('alfa'); base.push('abuela'); base.push('perro');
+            }
+            else if (gameMode === 'STORY') {
+                if (currentStage > 1) base.push('cabra'); 
+                if (currentStage > 2) base.push('alfa'); 
+                if (currentStage > 3) base.push('abuela'); 
+                if (currentStage > 4) base.push('perro');
+            }
+            return base;
+        }
+
+        // =========================================================
+        // MOTOR DEL TUTORIAL INTERACTIVO MEJORADO
+        // =========================================================
+        let tutorialStep = 0;
+        const tutorialSequence = [
+            { type: 'info', title: "Estrategia y Planificación", text: "Bienvenido a las praderas del norte. En <b>The Flock</b>, la estrategia y la anticipación lo son todo.<br><br>A diferencia de otros juegos, aquí no atacamos inmediatamente al colocar la carta." },
+            { type: 'info', title: "Las Fases del Juego", text: "El juego consta de dos fases. Primero, la <b>Fase de Colocación</b>, donde alternaremos turnos colocando todas nuestras cartas en el tablero de forma pacífica, preparando el terreno.<br><br>Una vez el tablero esté lleno, se desatará la <b>Fase de Combate Automático</b>." },
+            { type: 'info', title: "Objetivo y Puntuación", text: "Nuestro objetivo es posicionar nuestras cartas para que, al llegar la batalla futura, nuestros Lobos cacen y nuestros Pastores nos defiendan.<br><br>Al final, las <b>Ovejas 🐑</b> supervivientes darán <b>3 puntos</b> y los <b>Lobos 🐺 1 punto</b>. Ganará quien sume más." },
+            { type: 'info', title: "Visibilidad de las Cartas", text: "Las cartas pueden ser jugadas <b>bocarriba</b> o <b>bocabajo</b>.<br><br>👁️ <b>Bocarriba:</b> Visible para todos. En el tablero verás tu carta normalmente (Ej: 🐺).<br><br>🙈 <b>Bocabajo:</b> Tu rival no sabrá qué carta es. Tú la verás con el icono de un monito discreto en la esquina (🙈), pero tu rival solo verá un interrogante (❓).<br><br>Solo puedes jugar <b>4 cartas bocarriba</b> y <b>3 cartas bocabajo</b> por ronda." },
+            { type: 'player', cardIndex: 2, tileId: 17, faceUp: false, title: "El Primer Movimiento", text: "Comencemos preparando nuestra defensa escondiendo piezas valiosas.<br><br>Selecciona tu <b>Oveja 🐑</b> y colócala <b>BOCA ABAJO</b> en la esquina verde. Al ocultarla, el Maestro no sabrá qué hay ahí cuando planifique su futura ofensiva.", shortMsg: "👉 Toca tu oveja y ponla BOCA ABAJO en la casilla verde." },
+            { type: 'info', highlightCounter: true, title: "Control de Cartas", text: "Fíjate en el <b>contador que parpadea</b> arriba de tus cartas. Aquí puedes ver cuántas cartas has jugado bocarriba y bocabajo, para llevar un control de tus límites.<br><br>Gestionar cuándo ocultar tus intenciones es clave para engañar al rival." },
+            { type: 'cpu', cardIndex: 0, tileId: 14, faceUp: true, title: "La Respuesta del Maestro", text: "El Maestro toma posiciones colocando un <b>Lobo 🐺</b> agresivo <b>BOCA ARRIBA</b> en la tierra (roja).<br><br>Ya sabemos que, en la batalla final, ese lobo devorará a cualquier oveja que tenga a su alrededor.", shortMsg: "El Maestro está planificando su jugada..." },
+            { type: 'player', cardIndex: 4, tileId: 16, faceUp: true, title: "Previendo el Ataque", text: "El <b>Pastor 👨‍🌾</b> es nuestra mejor defensa: eliminará a los lobos enemigos adyacentes <i>antes</i> de que estos lleguen a atacar.<br><br>Colócalo <b>BOCA ARRIBA</b> junto al lobo del Maestro para dejar lista nuestra trampa.", shortMsg: "👉 Pon tu Pastor BOCA ARRIBA junto al lobo enemigo." },
+            { type: 'cpu', cardIndex: 4, tileId: 12, faceUp: false, title: "Movimientos Ocultos", text: "El Maestro percibe que su lobo está en peligro y decide jugar al despiste, colocando una carta <b>BOCA ABAJO</b>. Podría ser una presa vulnerable... o una emboscada defensiva.", shortMsg: "El Maestro oculta sus intenciones..." },
+            { type: 'player', cardIndex: 5, tileId: 9, faceUp: false, title: "El Arte del Engaño", text: "La <b>Piedra 🌑</b> es un señuelo indestructible.<br><br>Si la colocamos <b>BOCA ABAJO</b> en el centro, el Maestro creerá que es una oveja. Planeará sus futuros movimientos para atacarla y malgastará sus recursos.", shortMsg: "👉 Coloca la Piedra 🌑 BOCA ABAJO en la casilla central." },
+            { type: 'cpu', cardIndex: 1, tileId: 10, faceUp: true, title: "¡Caen en la trampa!", text: "¡El Maestro ha caído en el engaño y posiciona un segundo Lobo 🐺 apuntando al centro!<br><br>Lo mejor es que nuestro Pastor también cubre esa casilla, ¡así que ambos lobos enemigos serán neutralizados cuando empiece el combate!", shortMsg: "El Maestro muerde el anzuelo..." },
+            { type: 'player', cardIndex: 0, tileId: 0, faceUp: true, title: "Pasando a la Ofensiva", text: "Nuestra defensa está asegurada. Vamos a dominar la zona superior.<br><br>Coloca un <b>Lobo 🐺</b> <b>BOCA ARRIBA</b> arriba. Esto disuadirá al Maestro de colocar ovejas cerca de ahí en sus próximos turnos.", shortMsg: "👉 Pon tu Lobo BOCA ARRIBA en la casilla roja superior." },
+            { type: 'cpu', cardIndex: 5, tileId: 1, faceUp: false, title: "Defensa Enemiga", text: "Al ver la amenaza para el futuro combate, el Maestro intenta proteger la zona superior colocando una carta oculta frente a nuestro lobo. Si resulta ser una oveja, nuestro lobo dará buena cuenta de ella.", shortMsg: "El Maestro se defiende..." },
+            { type: 'player', cardIndex: 1, tileId: 4, faceUp: true, title: "Acorralando al Rival", text: "Reforcemos la presión.<br><br>Coloca tu segundo <b>Lobo 🐺</b> <b>BOCA ARRIBA</b>. Con esto crearemos un muro de colmillos que limitará enormemente las opciones seguras del rival.", shortMsg: "👉 Coloca tu otro Lobo BOCA ARRIBA en la casilla roja." },
+            { type: 'cpu', cardIndex: 2, tileId: 3, faceUp: true, title: "Sin Escapatoria", text: "Viéndose sin alternativas seguras, el Maestro arriesga y coloca una Oveja 🐑 BOCA ARRIBA en medio de nuestra zona de caza. Ya tenemos una presa asegurada para la inminente batalla.", shortMsg: "El Maestro arriesga una Oveja..." },
+            { type: 'player', cardIndex: 3, tileId: 11, faceUp: true, title: "Últimos Huecos", text: "El tablero casi está lleno y hemos agotado nuestro límite de 3 cartas ocultas.<br><br>Tendremos que jugar nuestra última <b>Oveja 🐑</b> obligatoriamente <b>BOCA ARRIBA</b> en el centro. Parece peligroso, pero es parte del plan...", shortMsg: "👉 Pon tu última Oveja BOCA ARRIBA en el centro." },
+            { type: 'cpu', cardIndex: 3, tileId: 5, faceUp: true, title: "Fin de la Colocación", text: "El Maestro completa el tablero jugando su última Oveja 🐑 cerca de la tuya, creyendo que en ese rincón estará a salvo de tus lobos.<br><br>¡La Fase de Colocación ha terminado!", shortMsg: "El Maestro completa el tablero..." },
+            { type: 'joker', cardIndex: 6, tileId: 11, faceUp: true, title: "¡El As en la Manga!", text: "Antes del combate automático, entramos en la <b>Fase de Comodín</b>.<br><br>Selecciona tu Comodín 🐒 y lánzalo sobre tu Oveja expuesta para transformarla en Lobo. ¡Esto devorará a su oveja y te dará la victoria en el combate!", shortMsg: "👉 Toca el Comodín y lánzalo sobre tu Oveja expuesta." },
+            { type: 'info', title: "¡La Batalla Comienza!", text: "El tablero está listo y todas las posiciones fijadas.<br><br>Pulsa el botón <b>Aceptar</b> que ha aparecido en la parte inferior para resolver la ronda. Las cartas se revelarán y todo lo que hemos planeado se ejecutará automáticamente. ¡Disfruta de tu victoria táctica!" }
+        ];
+
+        function showTutorialModal() {
+            if (gameMode !== 'TUTORIAL') return;
+            if (tutorialStep >= tutorialSequence.length) { finishPlacementPhase(); return; }
+            let step = tutorialSequence[tutorialStep];
+            document.getElementById('tutorial-modal-title').innerText = step.title;
+            document.getElementById('tutorial-modal-text').innerHTML = step.text;
+            document.getElementById('status-msg').innerText = "Lee la pantalla...";
+            
+            if (step.highlightCounter) {
+                document.getElementById('visibility-counter').classList.add('highlight-counter');
+            } else {
+                document.getElementById('visibility-counter').classList.remove('highlight-counter');
+            }
+            
+            document.getElementById('tutorial-modal').style.display = 'flex';
+        }
+
+        function showTutorialEpilogue() {
+            document.getElementById('tutorial-modal-title').innerText = "¡Lección Completada!";
+            document.getElementById('tutorial-modal-text').innerHTML = "¡Excelente! Has dominado el arte del engaño y la posición.<br><br>En partidas reales podrás formar tu mano a tu gusto, y tendrás que adaptarte a las estrategias imprevisibles de tus rivales. ¡Buena suerte!";
+            document.getElementById('tutorial-modal').style.display = 'flex';
+        }
+
+        function acceptTutorialStep() {
+            document.getElementById('tutorial-modal').style.display = 'none';
+            if (tutorialStep >= tutorialSequence.length) return; 
+            
+            let step = tutorialSequence[tutorialStep];
+            
+            if (step.type === 'info') { 
+                tutorialStep++; 
+                showTutorialModal(); 
+            } 
+            else if (step.type === 'player' || step.type === 'joker') { 
+                document.getElementById('status-msg').innerHTML = step.shortMsg; 
+                renderBoard(); 
+                renderHand(); 
+            } 
+            else if (step.type === 'cpu') { 
+                document.getElementById('status-msg').innerHTML = step.shortMsg; 
+                setTimeout(playTutorialCPU, 1000); 
+            }
+        }
+
+        function playTutorialCPU() {
+            let step = tutorialSequence[tutorialStep]; let card = cpuHand[step.cardIndex]; let tile = boardTiles[step.tileId];
+            if (step.faceUp) cpuFaceUpCount++; else cpuFaceDownCount++;
+            tile.card = { owner: 'cpu', type: card.type, icon: card.icon, color: card.color, faceUp: step.faceUp, revealed: false, isDisguised: true };
+            card.used = true; sfxPlaceCard(); updateCounterUI(); renderBoard(); renderHand(); passTurnAfterMove();
+        }
+
+        // =========================================================
+        // MOTOR ONLINE MQTT
+        // =========================================================
+        let mqttClient = null; let myRole = ''; let currentRoomCode = ''; let joinInterval = null;
+
+        function openOnlineModal() { document.getElementById('online-menu-options').style.display = 'flex'; document.getElementById('online-create-view').style.display = 'none'; document.getElementById('online-join-view').style.display = 'none'; document.getElementById('online-modal').style.display = 'flex'; }
+        function closeOnlineModal() { document.getElementById('online-modal').style.display = 'none'; if (joinInterval) { clearInterval(joinInterval); joinInterval = null; } }
+        function cancelOnlineSession() { if (mqttClient && mqttClient.connected) { sendNetMsg({ type: 'PLAYER_DISCONNECTED' }); } closeOnlineModal(); if (mqttClient) { mqttClient.end(); mqttClient = null; } gameMode = 'QUICK'; }
+        
+        function connectMQTT(role, code) {
+            myRole = role; currentRoomCode = code;
+            let options = { keepalive: 10, clientId: 'flock_' + role + '_' + Math.floor(Math.random() * 1000000), will: { topic: (role === 'player') ? `flock_2026_room_${code}_player` : `flock_2026_room_${code}_cpu`, payload: JSON.stringify({ type: 'PLAYER_DISCONNECTED' }), qos: 1, retain: false } };
+            mqttClient = mqtt.connect('wss://broker.emqx.io:8084/mqtt', options);
+            mqttClient.on('connect', () => {
+                if (role === 'player') { mqttClient.subscribe(`flock_2026_room_${code}_cpu`, { qos: 1 }, (err) => { if (!err) document.getElementById('online-create-status').innerText = "¡Sala lista! Esperando a tu amigo..."; }); } 
+                else { mqttClient.subscribe(`flock_2026_room_${code}_player`, { qos: 1 }, (err) => { if (!err) { document.getElementById('online-join-status').innerText = "¡Conectado! Sincronizando tablero..."; sendNetMsg({ type: 'GUEST_JOIN_REQ' }); if (joinInterval) clearInterval(joinInterval); joinInterval = setInterval(() => { if (gameMode !== 'ONLINE') sendNetMsg({ type: 'GUEST_JOIN_REQ' }); else clearInterval(joinInterval); }, 1000); } }); }
+            });
+            mqttClient.on('message', (topic, message) => { try { let msg = JSON.parse(message.toString()); handleNetMsg(msg); } catch(e) { } });
+            mqttClient.on('error', (err) => { let statusEl = role === 'player' ? 'online-create-status' : 'online-join-status'; document.getElementById(statusEl).innerText = "Fallo al conectar con el servidor público."; });
+        }
+        function sendNetMsg(msgObj) { if (mqttClient && mqttClient.connected) { let topic = (myRole === 'player') ? `flock_2026_room_${currentRoomCode}_player` : `flock_2026_room_${currentRoomCode}_cpu`; mqttClient.publish(topic, JSON.stringify(msgObj), { qos: 1 }); } }
+        function showOnlineCreateView() { document.getElementById('online-menu-options').style.display = 'none'; document.getElementById('online-create-view').style.display = 'block'; let code = Math.floor(1000 + Math.random() * 9000).toString(); document.getElementById('online-room-code').innerText = code; document.getElementById('online-create-status').innerText = "Conectando al servidor público..."; if (mqttClient) { mqttClient.end(); } connectMQTT('player', code); }
+        function joinOnlineRoomView() { document.getElementById('online-menu-options').style.display = 'none'; document.getElementById('online-join-view').style.display = 'block'; document.getElementById('online-code-input').value = ''; document.getElementById('online-join-status').innerText = ''; }
+        function confirmJoinOnlineRoom() { let inputCode = document.getElementById('online-code-input').value.trim(); if (inputCode.length !== 4) { document.getElementById('online-join-status').innerText = "Introduce un código de 4 dígitos."; return; } document.getElementById('online-join-status').innerText = "Conectando con la sala " + inputCode + "..."; if (mqttClient) { mqttClient.end(); } connectMQTT('cpu', inputCode); }
+
+        function handleNetMsg(msg) {
+            switch (msg.type) {
+                case 'GUEST_JOIN_REQ':
+                    if (myRole === 'player' && !document.getElementById('screen-game').classList.contains('active')) {
+                        sharedBoardColors = generateShuffledColors(); sendNetMsg({ type: 'ROOM_READY', format: matchFormat, boardColors: sharedBoardColors }); p1SelectedDeck = null; p2SelectedDeck = null; closeOnlineModal(); gameMode = 'ONLINE'; document.getElementById('screen-menu').classList.remove('active'); document.getElementById('screen-game').classList.add('active'); document.getElementById('p1-label').innerText = 'Tú (Anfitrión)'; document.getElementById('cpu-label').innerText = 'Rival (Online)'; document.getElementById('status-msg').innerText = "Configurando el mazo..."; startMusicContext('GAME'); openDeckBuilder('p1', null);
+                    } break;
+                case 'ROOM_READY':
+                    if (joinInterval) clearInterval(joinInterval); matchFormat = msg.format; sharedBoardColors = msg.boardColors; p1SelectedDeck = null; p2SelectedDeck = null; closeOnlineModal(); gameMode = 'ONLINE'; myRole = 'cpu'; document.getElementById('screen-menu').classList.remove('active'); document.getElementById('screen-game').classList.add('active'); document.getElementById('p1-label').innerText = 'Rival (Anfitrión)'; document.getElementById('cpu-label').innerText = 'Tú (Invitado)'; document.getElementById('status-msg').innerText = "Configurando el mazo..."; startMusicContext('GAME'); openDeckBuilder('p2', null); break;
+                case 'HOST_DECK_READY': p1SelectedDeck = msg.deck; if (p2SelectedDeck) startNewOnlineMatch(); break;
+                case 'GUEST_DECK_READY': p2SelectedDeck = msg.deck; if (p1SelectedDeck) startNewOnlineMatch(); break;
+                case 'NEXT_ROUND': currentRoundNum++; sharedBoardColors = msg.boardColors; applyRoundReset(sharedBoardColors); break;
+                case 'MOVE_PLACEMENT': applyOpponentPlacement(msg); break;
+                case 'MOVE_JOKER': let jTile = boardTiles[msg.tileId]; jTile.card.type = 'lobo'; jTile.card.icon = '🐺'; jTile.card.color = 'red'; jTile.card.revealed = true; jTile.card.isDisguised = false; let oppHand = (myRole === 'player') ? cpuHand : playerHand; let jCard = oppHand.find(c => c.type === 'comodin'); if (jCard) jCard.used = true; sfxPlaceCard(); renderBoard(); if (isJokerPhase) advanceOptionalCheckSequence(); else passTurnAfterMove(); break;
+                case 'MOVE_ABUELA':
+                    let aTile = boardTiles[msg.tileId];
+                    let oppHandA = (myRole === 'player') ? cpuHand : playerHand;
+                    let recType = aTile.card.type;
+                    let recCard = oppHandA.find(c => c.type === recType && c.used);
+                    if (recCard) recCard.used = false;
+                    let abuelaCard = oppHandA.find(c => c.type === 'abuela' && !c.used);
+                    if (abuelaCard) abuelaCard.used = true;
+                    aTile.card = null;
+                    if (myRole === 'player') cpuFaceDownCount--; else playerFaceDownCount--;
+                    sfxSelectCard(); updateCounterUI(); renderBoard(); renderHand();
+                    passTurnAfterMove();
+                    break;
+                case 'DISCARD_ABUELA':
+                    let oppHandAb = (myRole === 'player') ? cpuHand : playerHand;
+                    let opAb = oppHandAb.find(c => c.type === 'abuela' && !c.used);
+                    if (opAb) { opAb.used = true; opAb.discarded = true; }
+                    passTurnAfterMove();
+                    break;
+                case 'DISCARD_JOKER_HAND': // NUEVA SEÑAL ONLINE PARA EL COMODIN
+                    let oppHandJk = (myRole === 'player') ? cpuHand : playerHand;
+                    let opJk = oppHandJk.find(c => c.type === 'comodin' && !c.used);
+                    if (opJk) { opJk.used = true; opJk.discarded = true; }
+                    break;
+                case 'JOKER_PROMPT_DONE': let oHand = (myRole === 'player') ? cpuHand : playerHand; let j = oHand.find(c => c.type === 'comodin'); if (j) { j.used = true; j.discarded = (msg.action === 'discard'); } if (isJokerPhase) advanceOptionalCheckSequence(); else passTurnAfterMove(); break;
+                case 'DISCARD_PERRO':
+                    let oppHandP = (myRole === 'player') ? cpuHand : playerHand;
+                    let opPe = oppHandP.find(c => c.type === 'perro' && !c.used);
+                    if (opPe) { opPe.used = true; opPe.discarded = true; }
+                    passTurnAfterMove();
+                    break;
+                case 'RESOLVE_ROUND': resolveRound(); break;
+                case 'REMATCH_REQUEST': if (myRole === 'player') { sharedBoardColors = generateShuffledColors(); sendNetMsg({ type: 'ROOM_READY', format: matchFormat, boardColors: sharedBoardColors }); p1SelectedDeck = null; p2SelectedDeck = null; document.getElementById('status-msg').innerText = "Configurando el mazo..."; openDeckBuilder('p1', null); } break;
+                case 'PLAYER_DISCONNECTED': document.getElementById('status-msg').innerText = "⚠️ El rival ha abandonado la partida o cerrado el juego."; document.getElementById('disconnect-modal').style.display = 'flex'; break;
+            }
+        }
+        function startNewOnlineMatch() { winsPlayer = 0; winsCPU = 0; currentRoundNum = 1; updateScoreBoard(); applyRoundReset(sharedBoardColors); }
+        function applyOpponentPlacement(msg) { sfxPlaceCard(); let oppHand = (myRole === 'player') ? cpuHand : playerHand; const card = oppHand[msg.cardIdx]; const tile = boardTiles[msg.tileId]; tile.card = { owner: (myRole === 'player') ? 'cpu' : 'player', type: card.type, icon: card.icon, color: card.color, faceUp: msg.faceUp, revealed: false, isDisguised: true }; if (myRole === 'player') { if (msg.faceUp) cpuFaceUpCount++; else cpuFaceDownCount++; } else { if (msg.faceUp) playerFaceUpCount++; else playerFaceDownCount++; } card.used = true; updateCounterUI(); renderBoard(); renderHand(); passTurnAfterMove(); }
+        // =========================================================
+        // UTILIDADES Y AUDIO
+        // =========================================================
+        const storyIntroTexts = { 1: '"Las tierras del norte tienen los mejores pastos, pero también a los pastores más envidiosos. No dudarán en enviarte lobos feroces para acabar con tu rebaño. ¡Defiendelas!"', 2: '"Tú has vencío a mi primo porque traía los lobos sin afilar. Los míos vienen sin comer 3 semanas."', 3: '"Aprendí a leer ayer, pero los campos me los sé de memoria."', 4: '"Mis primos eran más malos que el final de Lost, pero yo soy más listo que el arquitecto de un iglú."', 5: '"Hasta ahora has derrotado a mis sobrinos porque no venían tan borrachos como yo."', 6: '"Aún estás a tiempo de no hacer el ridículo. Vende tus tierras y vuelve a Perú."' };
+        const storyVictoryTexts = { 1: '"¡Volved cuando queráis, pastores envidiosos del norte profundo! ¡Os estaré esperando! Ya sé que todos sois primos casados unos con otros..."', 2: '"3 semanas sin comer se me habían muerto los lobos ya."', 3: '"Tengo que seguir estudiando los libros y los campos."', 4: '"Me he quedao helao. Esta noche toca pacharán."', 5: '"Puedo dejarlo cuando quiera."', 6: '"¿Qué quieres decir con que naciste en Zamora?"' };
+        const storyFinalEpilogueText = "Y así, el pastor o pastora defendió sus tierras y a sus ovejas u ovejos del ataque de los primos endogámicos de las tierras del norte. Ahora las ovejas pueden seguir practicando la endogamia entre ellas hasta el fin de los tiempos...";
+
+        let audioCtx = null; let isMusicPlaying = false; let musicTimer = null; let songStep = 0; let currentMusicContext = 'MENU';
+
+        function initAudio() { if (!audioCtx) { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } if (audioCtx.state === 'suspended') audioCtx.resume(); }
+
+        function sfxBaa() { if (!audioCtx) return; try { const osc = audioCtx.createOscillator(); const gain = audioCtx.createGain(); osc.type = 'sawtooth'; const now = audioCtx.currentTime; osc.frequency.setValueAtTime(320, now); osc.frequency.linearRampToValueAtTime(300, now + 0.1); osc.frequency.linearRampToValueAtTime(310, now + 0.2); osc.frequency.linearRampToValueAtTime(280, now + 0.35); osc.frequency.linearRampToValueAtTime(260, now + 0.5); gain.gain.setValueAtTime(0, now); gain.gain.linearRampToValueAtTime(0.2, now + 0.05); gain.gain.exponentialRampToValueAtTime(0.001, now + 0.5); osc.connect(gain); gain.connect(audioCtx.destination); osc.start(); osc.stop(now + 0.5); } catch(e) {} }
+        function sfxSelectCard() { if (!audioCtx) return; try { [523.25, 659.25].forEach((freq, idx) => { const osc = audioCtx.createOscillator(); const gain = audioCtx.createGain(); osc.type = 'triangle'; osc.frequency.setValueAtTime(freq, audioCtx.currentTime + idx * 0.04); gain.gain.setValueAtTime(0.18, audioCtx.currentTime + idx * 0.04); gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + idx * 0.04 + 0.08); osc.connect(gain); gain.connect(audioCtx.destination); osc.start(audioCtx.currentTime + idx * 0.04); osc.stop(audioCtx.currentTime + idx * 0.04 + 0.08); }); } catch(e) {} }
+        function sfxPlaceCard() { if (!audioCtx) return; try { const osc = audioCtx.createOscillator(); const gain = audioCtx.createGain(); osc.type = 'triangle'; osc.frequency.setValueAtTime(350, audioCtx.currentTime); osc.frequency.exponentialRampToValueAtTime(80, audioCtx.currentTime + 0.12); gain.gain.setValueAtTime(0.3, audioCtx.currentTime); gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.12); osc.connect(gain); gain.connect(audioCtx.destination); osc.start(); osc.stop(audioCtx.currentTime + 0.12); } catch(e) {} }
+        function sfxRevealCards() { if (!audioCtx) return; [392.00, 523.25, 659.25, 783.99].forEach((freq, idx) => { setTimeout(() => { try { const osc = audioCtx.createOscillator(); const gain = audioCtx.createGain(); osc.type = 'sine'; osc.frequency.setValueAtTime(freq, audioCtx.currentTime); gain.gain.setValueAtTime(0.2, audioCtx.currentTime); gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.25); osc.connect(gain); gain.connect(audioCtx.destination); osc.start(); osc.stop(audioCtx.currentTime + 0.25); } catch(e) {} }, idx * 60); }); }
+        function sfxEliminateCard() { if (!audioCtx) return; try { const osc = audioCtx.createOscillator(); const gain = audioCtx.createGain(); osc.type = 'sawtooth'; osc.frequency.setValueAtTime(240, audioCtx.currentTime); osc.frequency.exponentialRampToValueAtTime(40, audioCtx.currentTime + 0.3); gain.gain.setValueAtTime(0.25, audioCtx.currentTime); gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.3); osc.connect(gain); gain.connect(audioCtx.destination); osc.start(); osc.stop(audioCtx.currentTime + 0.3); } catch(e) {} }
+        
+        function sfxVictoryFanfare() {
+            if (!audioCtx) return;
+            if (isMusicPlaying) clearInterval(musicTimer);
+            const seq = [{ f: 523.25, d: 0.15 }, { f: 659.25, d: 0.15 }, { f: 783.99, d: 0.15 }, { f: 1046.50, d: 0.3 }, { f: 880.00, d: 0.15 }, { f: 1046.50, d: 0.5 }];
+            let accTime = 0;
+            seq.forEach(item => {
+                setTimeout(() => {
+                    try {
+                        const osc = audioCtx.createOscillator(); const gain = audioCtx.createGain(); osc.type = 'square'; osc.frequency.setValueAtTime(item.f, audioCtx.currentTime);
+                        gain.gain.setValueAtTime(0.18, audioCtx.currentTime); gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + item.d);
+                        osc.connect(gain); gain.connect(audioCtx.destination); osc.start(); osc.stop(audioCtx.currentTime + item.d);
+                    } catch(e) {}
+                }, accTime * 1000); accTime += item.d;
+            });
+        }
+        function sfxDefeatFanfare() {
+            if (!audioCtx) return;
+            if (isMusicPlaying) clearInterval(musicTimer); 
+            const seq = [{ f: 349.23, d: 0.25 }, { f: 329.63, d: 0.25 }, { f: 311.13, d: 0.25 }, { f: 293.66, d: 0.7 }];
+            let accTime = 0;
+            seq.forEach(item => {
+                setTimeout(() => {
+                    try {
+                        const osc = audioCtx.createOscillator(); const gain = audioCtx.createGain(); osc.type = 'sawtooth'; osc.frequency.setValueAtTime(item.f, audioCtx.currentTime);
+                        gain.gain.setValueAtTime(0.15, audioCtx.currentTime); gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + item.d);
+                        osc.connect(gain); gain.connect(audioCtx.destination); osc.start(); osc.stop(audioCtx.currentTime + item.d);
+                    } catch(e) {}
+                }, accTime * 1000); accTime += item.d;
+            });
+        }
+        function sfxGrandFinalFanfare() {
+            if (!audioCtx) return;
+            if (isMusicPlaying) clearInterval(musicTimer); 
+            const seq = [ { f: 523.25, d: 0.12 }, { f: 659.25, d: 0.12 }, { f: 783.99, d: 0.12 }, { f: 1046.50, d: 0.3 }, { f: 880.00, d: 0.15 }, { f: 1046.50, d: 0.15 }, { f: 1174.66, d: 0.15 }, { f: 1318.51, d: 0.6 } ];
+            let accTime = 0;
+            seq.forEach(item => {
+                setTimeout(() => {
+                    try { const osc = audioCtx.createOscillator(); const gain = audioCtx.createGain(); osc.type = 'square'; osc.frequency.setValueAtTime(item.f, audioCtx.currentTime); gain.gain.setValueAtTime(0.18, audioCtx.currentTime); gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + item.d); osc.connect(gain); gain.connect(audioCtx.destination); osc.start(); osc.stop(audioCtx.currentTime + item.d); } catch(e) {}
+                }, accTime * 1000); accTime += item.d;
+            });
+        }
+        
+        function playEncounterMusic() { if (!audioCtx) return; const arpeggio = [440, 554.37, 659.25, 880, 659.25, 554.37, 440, 330]; arpeggio.forEach((freq, i) => { setTimeout(() => { try { const osc = audioCtx.createOscillator(); const gain = audioCtx.createGain(); osc.type = 'square'; osc.frequency.setValueAtTime(freq, audioCtx.currentTime); gain.gain.setValueAtTime(0.12, audioCtx.currentTime); gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.1); osc.connect(gain); gain.connect(audioCtx.destination); osc.start(); osc.stop(audioCtx.currentTime + 0.1); } catch(e) {} }, i * 60); }); }
+        
+        function synthPizzicato(freq, vol = 0.05) { if (!audioCtx || !isMusicPlaying) return; try { const osc = audioCtx.createOscillator(); const gain = audioCtx.createGain(); osc.type = 'triangle'; osc.frequency.setValueAtTime(freq, audioCtx.currentTime); gain.gain.setValueAtTime(vol, audioCtx.currentTime); gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + 0.16); osc.connect(gain); gain.connect(audioCtx.destination); osc.start(); osc.stop(audioCtx.currentTime + 0.16); } catch(e) {} }
+        function synthFluteMelody(freq, duration = 0.3, vol = 0.04) { if (!audioCtx || !isMusicPlaying) return; try { const osc = audioCtx.createOscillator(); const gain = audioCtx.createGain(); osc.type = 'sine'; osc.frequency.setValueAtTime(freq, audioCtx.currentTime); gain.gain.setValueAtTime(0, audioCtx.currentTime); gain.gain.linearRampToValueAtTime(vol, audioCtx.currentTime + 0.03); gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + duration); osc.connect(gain); gain.connect(audioCtx.destination); osc.start(); osc.stop(audioCtx.currentTime + duration); } catch(e) {} }
+        function synthBrightPiano(freq, vol = 0.04) { if (!audioCtx || !isMusicPlaying) return; try { const osc = audioCtx.createOscillator(); const gain = audioCtx.createGain(); osc.type = 'triangle'; osc.frequency.setValueAtTime(freq, audioCtx.currentTime); gain.gain.setValueAtTime(vol, audioCtx.currentTime); gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + 0.35); osc.connect(gain); gain.connect(audioCtx.destination); osc.start(); osc.stop(audioCtx.currentTime + 0.35); } catch(e) {} }
+        function synthBassBounce(freq, vol = 0.06) { if (!audioCtx || !isMusicPlaying) return; try { const osc = audioCtx.createOscillator(); const gain = audioCtx.createGain(); osc.type = 'sine'; osc.frequency.setValueAtTime(freq, audioCtx.currentTime); gain.gain.setValueAtTime(vol, audioCtx.currentTime); gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.22); osc.connect(gain); gain.connect(audioCtx.destination); osc.start(); osc.stop(audioCtx.currentTime + 0.22); } catch(e) {} }
+        function synthShaker() { if (!audioCtx || !isMusicPlaying) return; try { let bufferSize = audioCtx.sampleRate * 0.025; let buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate); let data = buffer.getChannelData(0); for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1; let noise = audioCtx.createBufferSource(); noise.buffer = buffer; let gain = audioCtx.createGain(); gain.gain.setValueAtTime(0.015, audioCtx.currentTime); gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + 0.025); noise.connect(gain); gain.connect(audioCtx.destination); noise.start(); } catch(e) {} }
+
+        function playMenuStep() { if (!isMusicPlaying) return; const menuMelody = [ 523.25, 659.25, 783.99, 659.25, 523.25, 440.00, 392.00, 440.00, 523.25, 587.33, 659.25, 523.25, 440.00, 392.00, 349.23, 392.00 ]; let note = menuMelody[songStep % menuMelody.length]; synthFluteMelody(note, 0.4, 0.035); if (songStep % 4 === 0) synthBrightPiano(note / 2, 0.03); songStep = (songStep + 1) % 16; }
+        function playZeldaStep() { if (!isMusicPlaying) return; const section = Math.floor(songStep / 32) % 3; const barIndex = Math.floor(songStep / 8) % 4; const stepInBar = songStep % 8; if (stepInBar % 2 === 0) synthShaker(); if (section === 0) { if (stepInBar === 0) synthBassBounce(barIndex % 2 === 0 ? 174.61 : 130.81); if (stepInBar === 4) synthBassBounce(barIndex % 2 === 0 ? 261.63 : 196.00); const introNotes = [523.25, 587.33, 659.25, 698.46, 523.25, 440.00]; if (stepInBar % 2 === 0) { synthPizzicato(introNotes[stepInBar / 2]); synthBrightPiano(introNotes[stepInBar / 2] / 2); } } else if (section === 1) { const bassChords = [174.61, 220.00, 146.83, 130.81]; if (stepInBar === 0) synthBassBounce(bassChords[barIndex]); if (stepInBar === 4) synthBassBounce(bassChords[barIndex] * 1.5); if (stepInBar === 2 || stepInBar === 6) synthBrightPiano(bassChords[barIndex] * 2); const melodyChorus = [ 698.46, 659.25, 587.33, 523.25, 440.00, 523.25, 587.33, 659.25, 698.46, 783.99, 880.00, 783.99, 698.46, 659.25, 587.33, 523.25, 587.33, 659.25, 698.46, 587.33, 523.25, 440.00, 392.00, 440.00, 523.25, 587.33, 659.25, 523.25, 440.00, 392.00, 349.23, 392.00 ]; let noteIdx = (barIndex * 8) + stepInBar; synthFluteMelody(melodyChorus[noteIdx], 0.28); if (stepInBar % 2 === 0) synthPizzicato(melodyChorus[noteIdx] * 1.5); } else if (section === 2) { const bassBridge = [146.83, 116.54, 98.00, 130.81]; if (stepInBar === 0) synthBassBounce(bassBridge[barIndex]); if (stepInBar === 4) synthBassBounce(bassBridge[barIndex] * 1.5); const melodyBridge = [ 587.33, 523.25, 466.16, 440.00, 392.00, 440.00, 466.16, 523.25, 466.16, 440.00, 392.00, 349.23, 329.63, 349.23, 392.00, 440.00, 392.00, 349.23, 329.63, 293.66, 261.63, 293.66, 329.63, 349.23, 392.00, 440.00, 523.25, 587.33, 659.25, 698.46, 783.99, 880.00 ]; let noteIdx = (barIndex * 8) + stepInBar; synthFluteMelody(melodyBridge[noteIdx], 0.35); synthPizzicato(melodyBridge[noteIdx]); } songStep = (songStep + 1) % 96; }
+
+        function startMusicContext(ctx) {
+            initAudio(); currentMusicContext = ctx; clearInterval(musicTimer); songStep = 0;
+            if (!isMusicPlaying) return;
+            if (ctx === 'MENU') musicTimer = setInterval(playMenuStep, 200); else musicTimer = setInterval(playZeldaStep, 167);
+        }
+        function toggleMusic() {
+            initAudio(); const btns = [document.getElementById('btn-music'), document.getElementById('btn-menu-music')]; isMusicPlaying = !isMusicPlaying;
+            if (isMusicPlaying) { startMusicContext(currentMusicContext); btns.forEach(b => { if (b) b.innerText = "🎵 Música ON"; }); } 
+            else { clearInterval(musicTimer); btns.forEach(b => { if (b) b.innerText = "🔇 Música OFF"; }); }
+        }
+
+        function bindTouchClick(element, handler) { if (!element) return; element.addEventListener('click', (e) => { initAudio(); handler(e); }); }
+
+        function populateLibrary() {
+            const container = document.getElementById('library-list'); container.innerHTML = '';
+            cardLibraryData.forEach(card => {
+                let div = document.createElement('div'); div.className = 'lib-item';
+                div.innerHTML = `<div class="lib-icon">${card.icon}</div><div class="lib-details"><h4>${card.name}</h4><p>${card.desc}</p><p style="font-size: 0.8rem; margin-top:4px; color:var(--text-muted);">Terreno: ${card.terrain}</p><span class="lib-limit">Máx en mano: ${card.max}</span></div>`;
+                container.appendChild(div);
+            });
+        }
+
+        window.onload = () => {
+            initGeometry(); buildAdjacencyMap();
+
+            bindTouchClick(document.getElementById('btn-menu-single'), () => { document.getElementById('main-menu-view').style.display = 'none'; document.getElementById('single-menu-view').style.display = 'flex'; });
+            bindTouchClick(document.getElementById('btn-menu-multi-group'), () => { document.getElementById('main-menu-view').style.display = 'none'; document.getElementById('multi-menu-view').style.display = 'flex'; });
+            bindTouchClick(document.getElementById('btn-back-single'), () => { document.getElementById('single-menu-view').style.display = 'none'; document.getElementById('main-menu-view').style.display = 'flex'; });
+            bindTouchClick(document.getElementById('btn-back-multi'), () => { document.getElementById('multi-menu-view').style.display = 'none'; document.getElementById('main-menu-view').style.display = 'flex'; });
+
+            bindTouchClick(document.getElementById('btn-mode-tutorial'), startTutorial);
+            bindTouchClick(document.getElementById('btn-mode-quick'), () => openFormatModal('QUICK'));
+            bindTouchClick(document.getElementById('btn-mode-multi'), () => openFormatModal('MULTI'));
+            bindTouchClick(document.getElementById('btn-mode-story'), startStoryMode);
+            bindTouchClick(document.getElementById('btn-mode-time-attack'), startTimeAttackMode);
+            bindTouchClick(document.getElementById('btn-home'), goToMenu);
+
+            bindTouchClick(document.getElementById('btn-mode-online'), openOnlineModal);
+            bindTouchClick(document.getElementById('btn-close-online-modal'), cancelOnlineSession);
+            bindTouchClick(document.getElementById('btn-online-create'), () => openFormatModal('ONLINE_HOST'));
+            bindTouchClick(document.getElementById('btn-online-join-view'), joinOnlineRoomView);
+            bindTouchClick(document.getElementById('btn-online-join-confirm'), confirmJoinOnlineRoom);
+            bindTouchClick(document.getElementById('btn-cancel-create'), cancelOnlineSession);
+            bindTouchClick(document.getElementById('btn-cancel-join'), cancelOnlineSession);
+
+            bindTouchClick(document.getElementById('btn-close-disconnect-modal'), () => { document.getElementById('disconnect-modal').style.display = 'none'; });
+            bindTouchClick(document.getElementById('btn-disconnect-go-home'), () => { document.getElementById('disconnect-modal').style.display = 'none'; goToMenu(); });
+
+            bindTouchClick(document.getElementById('btn-format-single'), () => confirmFormat('SINGLE'));
+            bindTouchClick(document.getElementById('btn-format-bo3'), () => confirmFormat('BO3'));
+            bindTouchClick(document.getElementById('btn-cancel-format'), closeFormatModal);
+
+            ['oveja', 'lobo', 'pastor', 'piedra', 'comodin', 'cabra', 'alfa', 'abuela', 'perro'].forEach(type => { let btnAdd = document.getElementById(`btn-add-${type}`); let btnSub = document.getElementById(`btn-sub-${type}`); if(btnAdd) bindTouchClick(btnAdd, () => changeDeckCount(type, 1)); if(btnSub) bindTouchClick(btnSub, () => changeDeckCount(type, -1)); });
+            bindTouchClick(document.getElementById('btn-confirm-deck'), confirmDeckBuilder);
+            bindTouchClick(document.getElementById('btn-cancel-deck'), closeDeckBuilder);
+
+            bindTouchClick(document.getElementById('btn-unlock-continue'), acceptUnlockModal);
+            bindTouchClick(document.getElementById('btn-mode-library'), () => { populateLibrary(); document.getElementById('library-modal').style.display = 'flex'; });
+            bindTouchClick(document.getElementById('btn-close-library'), () => { document.getElementById('library-modal').style.display = 'none'; });
+
+            bindTouchClick(document.getElementById('btn-music'), toggleMusic);
+            bindTouchClick(document.getElementById('btn-menu-music'), toggleMusic);
+            bindTouchClick(document.getElementById('btn-rules'), openModal);
+            bindTouchClick(document.getElementById('btn-menu-rules'), openModal);
+            bindTouchClick(document.getElementById('btn-close-modal'), closeModal);
+            
+            // EVENTOS DE INFORMACIÓN DE CARTA EN EL DECK BUILDER
+            document.querySelectorAll('.deck-card-info').forEach(infoEl => {
+                bindTouchClick(infoEl, () => {
+                    const cardType = infoEl.getAttribute('data-type');
+                    if (!cardType) return;
+                    showCardDetailsFromHand(cardType);
+                });
+            });
+            bindTouchClick(document.getElementById('btn-close-info'), () => { document.getElementById('card-info-modal').style.display = 'none'; });
+            
+            bindTouchClick(document.getElementById('btn-accept'), () => { if (gameMode === 'ONLINE') sendNetMsg({ type: 'RESOLVE_ROUND' }); resolveRound(); });
+            
+            bindTouchClick(document.getElementById('btn-next-round'), startNextRound);
+            bindTouchClick(document.getElementById('btn-restart'), () => {
+                sfxBaa();
+                if (gameMode === 'ONLINE') {
+                    if (myRole === 'player') { sharedBoardColors = generateShuffledColors(); sendNetMsg({ type: 'ROOM_READY', format: matchFormat, boardColors: sharedBoardColors }); p1SelectedDeck = null; p2SelectedDeck = null; document.getElementById('status-msg').innerText = "Configurando el mazo..."; openDeckBuilder('p1', null); } 
+                    else { sendNetMsg({ type: 'REMATCH_REQUEST' }); document.getElementById('status-msg').innerText = "Petición de revancha enviada..."; }
+                }
+                else if (gameMode === 'TUTORIAL') { goToMenu(); }
+                else { 
+                    if (isMusicPlaying) startMusicContext('GAME'); 
+                    startNewMatch(); 
+                }
+            });
+
+            bindTouchClick(document.getElementById('btn-face-up'), () => confirmPlacement(true));
+            bindTouchClick(document.getElementById('btn-face-down'), () => confirmPlacement(false));
+            bindTouchClick(document.getElementById('btn-cancel-choice'), cancelPlacementChoice);
+            
+            bindTouchClick(document.getElementById('btn-use-joker'), prepareJokerTargetSelection);
+            bindTouchClick(document.getElementById('btn-discard-joker'), discardJokerAndProceed);
+            bindTouchClick(document.getElementById('btn-cancel-joker-target'), cancelJokerTargetSelection);
+            bindTouchClick(document.getElementById('btn-trash-joker'), discardJokerFromHand);
+            
+            bindTouchClick(document.getElementById('btn-use-abuela'), () => { document.getElementById('abuela-prompt-modal').style.display = 'none'; activateAbuelaTargeting(); });
+            bindTouchClick(document.getElementById('btn-discard-abuela'), () => { document.getElementById('abuela-prompt-modal').style.display = 'none'; discardAbuelaAndProceed(); });
+            bindTouchClick(document.getElementById('btn-cancel-abuela-target'), cancelAbuelaTargetSelection);
+            bindTouchClick(document.getElementById('btn-trash-abuela'), discardAbuelaFromHand);
+
+            bindTouchClick(document.getElementById('btn-use-perro'), () => { document.getElementById('perro-prompt-modal').style.display = 'none'; activatePerroPlacement(); });
+            bindTouchClick(document.getElementById('btn-discard-perro'), () => { document.getElementById('perro-prompt-modal').style.display = 'none'; discardPerroAndProceed(); });
+            bindTouchClick(document.getElementById('btn-cancel-perro-target'), cancelPerroTargetSelection);
+            bindTouchClick(document.getElementById('btn-trash-perro'), discardPerroFromHand);
+            
+            bindTouchClick(document.getElementById('btn-optional-review'), () => { document.getElementById('optional-prompt-modal').style.display = 'none'; document.getElementById('status-msg').innerText = "Revisando mano. Selecciona una carta opcional."; });
+            bindTouchClick(document.getElementById('btn-optional-discard'), () => { document.getElementById('optional-prompt-modal').style.display = 'none'; discardOptionalsAndProceed(); });
+            
+            bindTouchClick(document.getElementById('btn-tutorial-accept'), acceptTutorialStep);
+            bindTouchClick(document.getElementById('btn-story-continue'), acceptStoryModalStep);
+            
+            // BOTÓN CONTINUAR TUTORIAL (Pausa táctica)
+            bindTouchClick(document.getElementById('btn-tutorial-next-step'), () => {
+                document.getElementById('btn-tutorial-next-step').style.display = 'none';
+                tutorialStep++;
+                showTutorialModal();
+            });
+            
+            // EVENTOS REGISTRO DE BATALLA
+            bindTouchClick(document.getElementById('btn-battle-log'), () => {
+                const list = document.getElementById('battle-log-list');
+                list.innerHTML = '';
+                if (battleLogMessages.length === 0) {
+                    list.innerHTML = '<li style="text-align:center; color: var(--text-muted);">No hubo eliminaciones en esta batalla. ¡Todo fue muy pacífico!</li>';
+                } else {
+                    battleLogMessages.forEach(msg => {
+                        let li = document.createElement('li');
+                        li.style.marginBottom = '8px';
+                        li.style.paddingBottom = '8px';
+                        li.style.borderBottom = '1px solid rgba(255,255,255,0.1)';
+                        li.innerText = msg;
+                        list.appendChild(li);
+                    });
+                }
+                document.getElementById('battle-log-modal').style.display = 'flex';
+            });
+            bindTouchClick(document.getElementById('btn-close-battle-log'), () => {
+                document.getElementById('battle-log-modal').style.display = 'none';
+            });
+        };
+
+        function showCardDetailsFromHand(type) {
+            const card = cardLibraryData.find(c => c.type === type);
+            if (card) {
+                document.getElementById('info-card-icon').innerText = card.icon;
+                document.getElementById('info-card-name').innerText = card.name;
+                document.getElementById('info-card-desc').innerText = card.desc;
+                document.getElementById('info-card-terrain').innerText = `Terreno: ${card.terrain}`;
+                document.getElementById('info-card-max').innerText = `Máx en mano: ${card.max}`;
+                document.getElementById('card-info-modal').style.display = 'flex';
+            }
+        }
+
+        function goToMenu() {
+            if (gameMode === 'ONLINE') cancelOnlineSession();
+            if (gameTimerInterval) clearInterval(gameTimerInterval);
+            document.getElementById('screen-game').classList.remove('active');
+            document.getElementById('screen-menu').classList.add('active');
+            startMusicContext('MENU');
+            document.getElementById('main-menu-view').style.display = 'flex';
+            document.getElementById('single-menu-view').style.display = 'none';
+            document.getElementById('multi-menu-view').style.display = 'none';
+        }
+
+        let onDeckConfirmedCallback = null;
+        function openDeckBuilder(targetRole, callback) {
+            deckBuilderTarget = targetRole; onDeckConfirmedCallback = callback; currentDeckCounts = { oveja: 0, lobo: 0, pastor: 0, piedra: 0, comodin: 0, cabra: 0, alfa: 0, abuela: 0, perro: 0 };
+            let label = "Jugador";
+            if (gameMode === 'MULTI') label = (targetRole === 'p1') ? "Jugador 1" : "Jugador 2"; else if (gameMode === 'ONLINE') label = (targetRole === 'p1') ? "Anfitrión" : "Invitado";
+            document.getElementById('deck-builder-title').innerText = `Diseña tu Mano (${label})`;
+            let unlocked = getUnlockedCards();
+            ['oveja', 'lobo', 'pastor', 'piedra', 'comodin', 'cabra', 'alfa', 'abuela', 'perro'].forEach(type => { let row = document.getElementById(`row-${type}`); if (row) row.style.display = unlocked.includes(type) ? 'flex' : 'none'; });
+            updateDeckBuilderUI(); document.getElementById('deck-modal').style.display = 'flex';
+        }
+
+        function closeDeckBuilder() { document.getElementById('deck-modal').style.display = 'none'; }
+        function changeDeckCount(type, delta) {
+            let current = currentDeckCounts[type]; let limit = DECK_LIMITS[type]; let total = Object.values(currentDeckCounts).reduce((a, b) => a + b, 0);
+            if (delta > 0) { if (current < limit && total < 7) { currentDeckCounts[type]++; sfxSelectCard(); } } 
+            else if (delta < 0) { if (current > 0) { currentDeckCounts[type]--; sfxSelectCard(); } }
+            updateDeckBuilderUI();
+        }
+        function updateDeckBuilderUI() {
+            let total = 0; for (let type in currentDeckCounts) { let count = currentDeckCounts[type]; total += count; let el = document.getElementById(`count-${type}`); if(el) el.innerText = count; }
+            document.getElementById('deck-total-count').innerText = total; document.getElementById('btn-confirm-deck').disabled = (total !== 7);
+        }
+        function confirmDeckBuilder() {
+            let deckArray = buildHandArrayFromCounts(currentDeckCounts);
+            if (deckBuilderTarget === 'p1') p1SelectedDeck = deckArray; else p2SelectedDeck = deckArray;
+            closeDeckBuilder();
+            if (gameMode === 'ONLINE') {
+                if (myRole === 'player') { sendNetMsg({ type: 'HOST_DECK_READY', deck: p1SelectedDeck }); if (p2SelectedDeck) { startNewOnlineMatch(); } else { document.getElementById('status-msg').innerText = "Mazo listo. Esperando al Invitado..."; } } 
+                else { sendNetMsg({ type: 'GUEST_DECK_READY', deck: p2SelectedDeck }); if (p1SelectedDeck) { startNewOnlineMatch(); } else { document.getElementById('status-msg').innerText = "Mazo listo. Esperando al Anfitrión..."; } }
+            } else { if (onDeckConfirmedCallback) onDeckConfirmedCallback(); }
+        }
+
+        function buildHandArrayFromCounts(counts) {
+            let arr = []; const mapping = { lobo: { type: 'lobo', color: 'red', icon: '🐺' }, oveja: { type: 'oveja', color: 'black', icon: '🐑' }, pastor: { type: 'pastor', color: 'yellow', icon: '👨🌾' }, piedra: { type: 'piedra', color: 'black', icon: '🌑' }, comodin: { type: 'comodin', color: 'any', icon: '🐒' }, cabra: { type: 'cabra', color: 'black', icon: '🐐' }, alfa: { type: 'alfa', color: 'yellow', icon: '🐉' }, abuela: { type: 'abuela', color: 'any', icon: '👵' }, perro: { type: 'perro', color: 'red', icon: '🐕' } };
+            for (let type in counts) { for (let i = 0; i < counts[type]; i++) { arr.push({ ...mapping[type], used: false, discarded: false }); } } return arr;
+        }
+
+        function generateCpuSmartDeck() {
+            let available = getUnlockedCards(); let archetypes = [];
+            if (available.includes('abuela') && available.includes('alfa')) { archetypes.push({ oveja: 1, cabra: 1, lobo: 2, alfa: 1, pastor: 1, abuela: 1, comodin: 0, perro: 0 }); archetypes.push({ oveja: 1, cabra: 1, lobo: 1, alfa: 1, pastor: 1, piedra: 1, abuela: 1, perro: 0 }); archetypes.push({ oveja: 2, cabra: 0, lobo: 2, alfa: 1, pastor: 1, abuela: 1, comodin: 0, perro: 0 }); }
+            else if (available.includes('alfa')) { archetypes.push({ oveja: 1, cabra: 1, lobo: 2, alfa: 1, pastor: 1, piedra: 1, comodin: 0, perro: 0 }); archetypes.push({ oveja: 1, cabra: 1, lobo: 1, alfa: 1, pastor: 1, piedra: 1, comodin: 1, perro: 0 }); archetypes.push({ oveja: 2, cabra: 0, lobo: 2, alfa: 1, pastor: 1, piedra: 1, comodin: 0, perro: 0 }); }
+            else if (available.includes('cabra')) { archetypes.push({ oveja: 1, cabra: 1, lobo: 2, pastor: 1, piedra: 1, comodin: 1, perro: 0 }); archetypes.push({ oveja: 2, cabra: 1, lobo: 2, pastor: 1, piedra: 1, comodin: 0, perro: 0 }); archetypes.push({ oveja: 1, cabra: 1, lobo: 3, pastor: 1, piedra: 0, comodin: 1, perro: 0 }); } 
+            else { archetypes.push({ oveja: 2, lobo: 2, pastor: 1, piedra: 1, comodin: 1, perro: 0 }); archetypes.push({ oveja: 3, lobo: 2, pastor: 1, piedra: 1, comodin: 0, perro: 0 }); archetypes.push({ oveja: 2, lobo: 3, pastor: 1, piedra: 0, comodin: 1, perro: 0 }); archetypes.push({ oveja: 3, lobo: 3, pastor: 1, piedra: 0, comodin: 0, perro: 0 }); }
+            
+            if (available.includes('perro')) { archetypes.push({ oveja: 2, cabra: 1, lobo: 2, pastor: 1, perro: 1, comodin: 0, piedra: 0, alfa: 0, abuela: 0 }); }
+            if (archetypes.length === 0) archetypes.push({ oveja: 2, lobo: 2, pastor: 1, piedra: 1, comodin: 1, perro: 0, cabra: 0, alfa: 0, abuela: 0 });
+            let choice = archetypes[Math.floor(Math.random() * archetypes.length)]; return buildHandArrayFromCounts(choice);
+        }
+
+        function openFormatModal(mode) { pendingGameMode = mode; document.getElementById('format-modal').style.display = 'flex'; }
+        function closeFormatModal() { document.getElementById('format-modal').style.display = 'none'; }
+        function confirmFormat(format) {
+            matchFormat = format; closeFormatModal();
+            if (pendingGameMode === 'QUICK') {
+                gameMode = 'QUICK'; document.getElementById('lives-display').style.display = 'none'; document.getElementById('p1-label').innerText = 'Jugador'; document.getElementById('cpu-label').innerText = 'CPU';
+                openDeckBuilder('p1', () => { p2SelectedDeck = generateCpuSmartDeck(); document.getElementById('screen-menu').classList.remove('active'); document.getElementById('screen-game').classList.add('active'); startMusicContext('GAME'); startNewMatch(); });
+            } else if (pendingGameMode === 'MULTI') {
+                gameMode = 'MULTI'; document.getElementById('lives-display').style.display = 'none'; document.getElementById('p1-label').innerText = 'Jugador 1'; document.getElementById('cpu-label').innerText = 'Jugador 2';
+                openDeckBuilder('p1', () => { document.getElementById('start-turn-title').innerText = "¡Turno del Jugador 2!"; document.getElementById('start-turn-desc').innerText = "Pasa el teléfono al Jugador 2 para que configure su rebaño en secreto."; document.getElementById('btn-start-next-player-turn').onclick = () => { document.getElementById('start-turn-modal').style.display = 'none'; openDeckBuilder('p2', () => { document.getElementById('screen-menu').classList.remove('active'); document.getElementById('screen-game').classList.add('active'); startMusicContext('GAME'); startNewMatch(); }); }; document.getElementById('start-turn-modal').style.display = 'flex'; });
+            } else if (pendingGameMode === 'ONLINE_HOST') { showOnlineCreateView(); }
+        }
+
+        function startTimeAttackMode() {
+            gameMode = 'TIME_ATTACK'; matchFormat = 'SINGLE'; document.getElementById('lives-display').style.display = 'none'; document.getElementById('p1-label').innerText = 'Jugador'; document.getElementById('cpu-label').innerText = 'CPU';
+            openDeckBuilder('p1', () => { p2SelectedDeck = generateCpuSmartDeck(); document.getElementById('screen-menu').classList.remove('active'); document.getElementById('screen-game').classList.add('active'); startMusicContext('GAME'); startNewMatch(); });
+        }
+        function startTimeAttackTimer() {
+            if (gameTimerInterval) clearInterval(gameTimerInterval);
+            playerTime = 20.0; cpuTime = 20.0; updateTimerUI();
+            
+            gameTimerInterval = setInterval(() => {
+                if (gameState !== 'PLACEMENT' && gameState !== 'JOKER_TARGETING' && gameState !== 'ABUELA_TARGETING') return; 
+                
+                if (currentTurn === 'player') {
+                    playerTime = Math.max(0, playerTime - 0.1);
+                    if (playerTime <= 0) handleTimeOut('player');
+                } else if (currentTurn === 'cpu') {
+                    cpuTime = Math.max(0, cpuTime - 0.1);
+                    if (cpuTime <= 0) handleTimeOut('cpu');
+                }
+                updateTimerUI();
+            }, 100);
+        }
+        function updateTimerUI() { document.getElementById('timer-player').innerText = playerTime.toFixed(1); document.getElementById('timer-cpu').innerText = cpuTime.toFixed(1); }
+        function handleTimeOut(loser) {
+            clearInterval(gameTimerInterval); gameState = 'RESOLVED'; let winner = (loser === 'player') ? 'cpu' : 'player';
+            if(winner === 'player') winsPlayer++; else winsCPU++; updateScoreBoard();
+            document.getElementById('status-msg').innerText = `¡Tiempo agotado! Pierde ${(loser==='player')?'el Jugador':'la CPU'}.`;
+            handleMatchEnd(winner, true); 
+        }
+
+        function startTutorial() { gameMode = 'TUTORIAL'; matchFormat = 'SINGLE'; p1SelectedDeck = [ { type: 'lobo', color: 'red', icon: '🐺', used: false, discarded: false }, { type: 'lobo', color: 'red', icon: '🐺', used: false, discarded: false }, { type: 'oveja', color: 'black', icon: '🐑', used: false, discarded: false }, { type: 'oveja', color: 'black', icon: '🐑', used: false, discarded: false }, { type: 'pastor', color: 'yellow', icon: '👨‍🌾', used: false, discarded: false }, { type: 'piedra', color: 'black', icon: '🌑', used: false, discarded: false }, { type: 'comodin', color: 'any', icon: '🐒', used: false, discarded: false } ]; p2SelectedDeck = JSON.parse(JSON.stringify(p1SelectedDeck)); document.getElementById('lives-display').style.display = 'none'; document.getElementById('p1-label').innerText = 'Aprendiz'; document.getElementById('cpu-label').innerText = 'Maestro'; document.getElementById('screen-menu').classList.remove('active'); document.getElementById('screen-game').classList.add('active'); startMusicContext('GAME'); startNewMatch(); }
+        function startStoryMode() { gameMode = 'STORY'; matchFormat = 'BO3'; currentStage = 1; storyLives = 2; document.getElementById('p1-label').innerText = 'Jugador'; document.getElementById('lives-counter').innerText = storyLives; document.getElementById('lives-display').style.display = 'inline'; showStoryIntroModal(1); }
+        function showStoryIntroModal(stage) { storyModalState = 'INTRO'; playEncounterMusic(); document.getElementById('story-title').innerText = `Desafío ${stage}/6: Pastor Envidioso #${stage}`; document.getElementById('story-text').innerText = storyIntroTexts[stage]; document.getElementById('btn-story-continue').innerText = "¡Configurar Rebaño!"; document.getElementById('story-modal').style.display = 'flex'; }
+        function acceptStoryModalStep() { document.getElementById('story-modal').style.display = 'none'; if (storyModalState === 'INTRO') { document.getElementById('cpu-label').innerText = `Pastor #${currentStage}`; openDeckBuilder('p1', () => { p2SelectedDeck = generateCpuSmartDeck(); document.getElementById('screen-menu').classList.remove('active'); document.getElementById('screen-game').classList.add('active'); startMusicContext('GAME'); startNewMatch(); }); } else if (storyModalState === 'VICTORY') { currentStage++; showStoryIntroModal(currentStage); } else if (storyModalState === 'EPILOGUE') { goToMenu(); } }
+        function showUnlockModal(cardType) { sfxVictoryFanfare(); const card = cardLibraryData.find(c => c.type === cardType); document.getElementById('unlock-card-icon').innerText = card.icon; document.getElementById('unlock-card-name').innerText = card.name; document.getElementById('unlock-card-desc').innerText = card.desc; document.getElementById('unlock-card-terrain').innerText = `Terreno: ${card.terrain}`; document.getElementById('unlock-card-max').innerText = `Máx en mano: ${card.max}`; document.getElementById('unlock-modal').style.display = 'flex'; }
+        function acceptUnlockModal() { document.getElementById('unlock-modal').style.display = 'none'; showStoryVictoryModal(); }
+        function openModal() { document.getElementById('rules-modal').style.display = 'flex'; }
+        function closeModal() { document.getElementById('rules-modal').style.display = 'none'; }
+
+        function getGridVertex(u, v) { return { x: ORIGIN_X + (u - v) * (L / 2), y: ORIGIN_Y + (u + v) * H }; }
+        function initGeometry() { boardTiles = []; let id = 0; for (let u = 0; u < 3; u++) { for (let v = 0; v < 3; v++) { let p1 = getGridVertex(u, v); let p2 = getGridVertex(u + 1, v); let p3 = getGridVertex(u + 1, v + 1); let p4 = getGridVertex(u, v + 1); boardTiles.push({ id: id++, dir: 'D', points: [p1, p2, p4], color: null, card: null }); boardTiles.push({ id: id++, dir: 'U', points: [p2, p3, p4], color: null, card: null }); } } }
+        function buildAdjacencyMap() { adjacencyMap = []; for (let i = 0; i < boardTiles.length; i++) { let target = boardTiles[i]; let list = []; for (let j = 0; j < boardTiles.length; j++) { if (i === j) continue; let other = boardTiles[j]; let touches = target.points.some(p1 => other.points.some(p2 => Math.hypot(p1.x - p2.x, p1.y - p2.y) < 0.1)); if (touches) list.push(j); } adjacencyMap.push(list); } }
+        
+        // --- FUNCIÓN EXPLÍCITA Y ROBUSTA DE CARTAS JUGABLES ---
+        function hasPlayableCards(owner) { 
+            let hand = (owner === 'cpu') ? cpuHand : playerHand; 
+            let emptyTiles = boardTiles.filter(t => t.card === null); 
+            
+            // Busca cualquier carta estándar (no opcional) que tenga un hueco válido libre
+            let hasStandardPlayable = hand.some(c => { 
+                if (c.used || c.type === 'comodin' || c.type === 'abuela' || c.type === 'perro') return false; 
+                return emptyTiles.some(t => isValidPlacement(c, t)); 
+            });
+
+            return hasStandardPlayable;
+        }
+
+        function updateScoreBoard() { document.getElementById('score-player').innerText = winsPlayer; document.getElementById('score-cpu').innerText = winsCPU; let formatText = (matchFormat === 'BO3') ? 'Al mejor de 3' : 'Ronda Única'; let winsNeeded = (matchFormat === 'BO3') ? 2 : 1; if (winsPlayer === winsCPU && winsPlayer === winsNeeded - 1 && currentRoundNum > 1) { formatText = 'Ronda de desempate'; } document.getElementById('match-format-badge').innerText = formatText; }
+
+        function startNewMatch() { winsPlayer = 0; winsCPU = 0; currentRoundNum = 1; updateScoreBoard(); if (gameMode !== 'ONLINE' || myRole === 'player') { sharedBoardColors = generateShuffledColors(); } applyRoundReset(sharedBoardColors); }
+        function startNextRound() { 
+            document.getElementById('btn-next-round').style.display = 'none'; 
+            document.getElementById('btn-battle-log').style.display = 'none';
+            sfxBaa(); 
+            if (isMusicPlaying) startMusicContext('GAME');
+            currentRoundNum++; 
+            if (gameMode !== 'ONLINE' || myRole === 'player') { sharedBoardColors = generateShuffledColors(); if (gameMode === 'ONLINE') sendNetMsg({ type: 'NEXT_ROUND', boardColors: sharedBoardColors }); } applyRoundReset(sharedBoardColors); 
+        }
+
+        function generateShuffledColors() { let colors = []; for (let i=0; i<18; i++) colors.push(i % 2 === 0 ? 'red' : 'black'); if (gameMode !== 'TUTORIAL') shuffleArray(colors); return colors; }
+        
+        function applyRoundReset(colors) {
+            gameState = 'PLACEMENT'; currentTurn = 'player'; isJokerPhase = false; selectedCardIndex = null; pendingTile = null; playerFaceUpCount = 0; playerFaceDownCount = 0; cpuFaceUpCount = 0; cpuFaceDownCount = 0;
+            battleLogMessages = [];
+            document.getElementById('joker-prompt-modal').style.display = 'none'; document.getElementById('abuela-prompt-modal').style.display = 'none'; document.getElementById('perro-prompt-modal').style.display = 'none'; document.getElementById('optional-prompt-modal').style.display = 'none'; document.getElementById('btn-cancel-joker-target').style.display = 'none'; document.getElementById('btn-cancel-abuela-target').style.display = 'none'; document.getElementById('btn-cancel-perro-target').style.display = 'none'; document.getElementById('btn-trash-joker').style.display = 'none'; document.getElementById('btn-trash-abuela').style.display = 'none'; document.getElementById('btn-trash-perro').style.display = 'none'; document.getElementById('btn-accept').style.display = 'none'; document.getElementById('btn-next-round').style.display = 'none'; document.getElementById('btn-restart').style.display = 'none'; document.getElementById('btn-tutorial-next-step').style.display = 'none'; document.getElementById('btn-battle-log').style.display = 'none'; document.getElementById('btn-restart').innerText = "Jugar Otra Vez";
+            document.getElementById('visibility-counter').classList.remove('highlight-counter');
+            updateScoreBoard();
+            
+            if (gameMode === 'TIME_ATTACK') { document.getElementById('time-attack-container').style.display = 'flex'; startTimeAttackTimer(); } 
+            else { document.getElementById('time-attack-container').style.display = 'none'; if(gameTimerInterval) clearInterval(gameTimerInterval); }
+
+            if (gameMode === 'TUTORIAL') tutorialStep = 0; else document.getElementById('status-msg').innerText = (gameMode === 'MULTI') ? "Turno de Jugador 1: Elige carta" : "Tu turno: Selecciona una carta";
+            boardTiles.forEach((tile, i) => { tile.color = colors[i]; tile.card = null; });
+            playerHand = JSON.parse(JSON.stringify(p1SelectedDeck)); cpuHand = JSON.parse(JSON.stringify(p2SelectedDeck));
+            updateCounterUI(); renderBoard(); renderHand(); if (gameMode === 'TUTORIAL') showTutorialModal();
+        }
+
+        function shuffleArray(arr) { for (let i = arr.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [arr[i], arr[j]] = [arr[j], arr[i]]; } }
+        function updateCounterUI() { let activeFaceUp = (currentTurn === 'player') ? playerFaceUpCount : cpuFaceUpCount; let activeFaceDown = (currentTurn === 'player') ? playerFaceDownCount : cpuFaceDownCount; document.getElementById('visibility-counter').innerText = `Arriba: ${activeFaceUp}/4 | Abajo: ${activeFaceDown}/3`; let handOwnerLabel = "Tus Cartas"; if (gameMode === 'MULTI') handOwnerLabel = (currentTurn === 'player') ? "Tus Cartas (Jugador 1)" : "Tus Cartas (Jugador 2)"; else if (gameMode === 'ONLINE') handOwnerLabel = (myRole === 'player') ? "Tus Cartas (Anfitrión)" : "Tus Cartas (Invitado)"; document.getElementById('hand-owner-text').innerText = handOwnerLabel; }
+
+        function renderBoard() {
+            const svg = document.getElementById('board'); svg.innerHTML = '';
+            
+            let activeHand = getLocalPlayerHand();
+            let selectedCard = (selectedCardIndex !== null) ? activeHand[selectedCardIndex] : null;
+
+            boardTiles.forEach((tile, index) => {
+                const polygon = document.createElementNS("http://www.w3.org/2000/svg", "polygon"); 
+                const ptsString = tile.points.map(p => `${p.x.toFixed(2)},${p.y.toFixed(2)}`).join(' '); 
+                polygon.setAttribute("points", ptsString); 
+                
+                let tileClass = `tile ${tile.color}`;
+
+                // VERIFICADOR DE CASILLAS VÁLIDAS PARA EL HIGHLIGHT
+                let isValidTarget = false;
+                
+                if (gameMode === 'TUTORIAL' && tutorialStep < tutorialSequence.length) {
+                    let step = tutorialSequence[tutorialStep];
+                    if ((step.type === 'player' || step.type === 'joker') && tile.id === step.tileId && selectedCardIndex === step.cardIndex) {
+                        isValidTarget = true;
+                    }
+                } else {
+                    if (selectedCard && !selectedCard.used) {
+                        if (gameState === 'PLACEMENT' && !tile.card) {
+                            if (isValidPlacement(selectedCard, tile)) isValidTarget = true;
+                        } else if (gameState === 'JOKER_TARGETING' && selectedCard.type === 'comodin') {
+                            let targetOwner = (gameMode === 'ONLINE') ? myRole : currentTurn;
+                            if (tile.card && tile.card.owner === targetOwner && (tile.card.type === 'oveja' || tile.card.type === 'cabra')) {
+                                isValidTarget = true;
+                            }
+                        } else if (gameState === 'ABUELA_TARGETING' && selectedCard.type === 'abuela') {
+                            let targetOwner = (gameMode === 'ONLINE') ? myRole : currentTurn;
+                            if (tile.card && tile.card.owner === targetOwner && !tile.card.faceUp && !tile.card.revealed) {
+                                isValidTarget = true;
+                            }
+                        }
+                    }
+                }
+                
+                if (isValidTarget) {
+                    tileClass += " valid-placement";
+                }
+
+                polygon.setAttribute("class", tileClass);
+                
+                polygon.addEventListener('click', (e) => { initAudio(); onTileClick(tile); }); svg.appendChild(polygon);
+                if (tile.card) {
+                    const g = document.createElementNS("http://www.w3.org/2000/svg", "g"); g.setAttribute("class", "card-group"); const cardPoly = document.createElementNS("http://www.w3.org/2000/svg", "polygon"); const center = getCenter(tile.points); const scaledPts = tile.points.map(p => ({ x: center.x + (p.x - center.x) * 0.84, y: center.y + (p.y - center.y) * 0.84 })); cardPoly.setAttribute("points", scaledPts.map(p => `${p.x.toFixed(2)},${p.y.toFixed(2)}`).join(' '));
+                    const isPlayerCard = (tile.card.owner === 'player'); const isPassingState = (gameMode === 'MULTI' && gameState === 'PASSING_TURN'); let isCurrentTurnOwner = false;
+                    if (gameMode === 'MULTI') isCurrentTurnOwner = (!isPassingState && tile.card.owner === currentTurn); else if (gameMode === 'ONLINE') isCurrentTurnOwner = (tile.card.owner === myRole); else isCurrentTurnOwner = isPlayerCard;
+                    const isCardVisible = tile.card.revealed || tile.card.faceUp;
+                    if (isCardVisible || isCurrentTurnOwner) {
+                        if (!isCurrentTurnOwner && !tile.card.faceUp && !tile.card.revealed) drawFaceDownCard(g, cardPoly, center, isPlayerCard);
+                        else {
+                            let displayIcon = tile.card.icon; let displayType = tile.card.type;
+                            if (tile.card.type === 'cabra' && tile.card.isDisguised !== false) { if (!isCurrentTurnOwner) { displayIcon = '🐑'; displayType = 'oveja'; } }
+                            cardPoly.setAttribute("fill", getCardHexColor(displayType)); cardPoly.setAttribute("stroke", isPlayerCard ? '#4da6ff' : '#ff6666'); cardPoly.setAttribute("stroke-width", "3.5"); g.appendChild(cardPoly);
+                            const text = document.createElementNS("http://www.w3.org/2000/svg", "text"); text.setAttribute("x", center.x); text.setAttribute("y", center.y + (tile.dir === 'D' ? -2 : 2)); text.setAttribute("text-anchor", "middle"); text.setAttribute("dominant-baseline", "middle"); text.setAttribute("font-size", "20px"); text.textContent = displayIcon; g.appendChild(text);
+                            if (isCurrentTurnOwner && !tile.card.revealed) { const eyeBadge = document.createElementNS("http://www.w3.org/2000/svg", "text"); eyeBadge.setAttribute("x", center.x + 12); eyeBadge.setAttribute("y", center.y + (tile.dir === 'D' ? 10 : -8)); eyeBadge.setAttribute("text-anchor", "middle"); eyeBadge.setAttribute("dominant-baseline", "middle"); eyeBadge.setAttribute("font-size", "11px"); eyeBadge.textContent = tile.card.faceUp ? "👁️" : "🙈"; g.appendChild(eyeBadge); }
+                        }
+                    } else { drawFaceDownCard(g, cardPoly, center, isPlayerCard); }
+                    svg.appendChild(g);
+                }
+            });
+        }
+        function drawFaceDownCard(g, cardPoly, center, isPlayerCard = false) { cardPoly.setAttribute("fill", "#383838"); cardPoly.setAttribute("stroke", isPlayerCard ? '#4da6ff' : '#ff6666'); cardPoly.setAttribute("stroke-width", "3.5"); g.appendChild(cardPoly); const text = document.createElementNS("http://www.w3.org/2000/svg", "text"); text.setAttribute("x", center.x); text.setAttribute("y", center.y + 1); text.setAttribute("text-anchor", "middle"); text.setAttribute("dominant-baseline", "middle"); text.setAttribute("font-size", "16px"); text.textContent = "❓"; g.appendChild(text); }
+        function getCenter(pts) { return { x: (pts[0].x + pts[1].x + pts[2].x) / 3, y: (pts[0].y + pts[1].y + pts[2].y) / 3 }; }
+        function getCardHexColor(type) { if (type === 'lobo') return '#8c1d18'; if (type === 'oveja' || type === 'cabra') return '#2b2d2f'; if (type === 'pastor') return '#b8860b'; if (type === 'piedra') return '#4a5568'; if (type === 'comodin') return '#7b1fa2'; if (type === 'alfa') return '#6a1b9a'; if (type === 'abuela') return '#e91e63'; if (type === 'perro') return '#8B5A2B'; return '#000'; }
+
+        function renderHand() { 
+            const handContainer = document.getElementById('player-hand'); 
+            handContainer.innerHTML = ''; 
+            let activeHand = getLocalPlayerHand(); 
+            
+            activeHand.forEach((card, index) => { 
+                const div = document.createElement('div'); 
+                div.className = `card-item ${card.used ? 'used' : ''} ${selectedCardIndex === index ? 'selected' : ''}`; 
+                
+                if (gameMode === 'TUTORIAL' && tutorialStep < tutorialSequence.length) { 
+                    let step = tutorialSequence[tutorialStep]; 
+                    if ((step.type === 'player' || step.type === 'joker') && index === step.cardIndex && !card.used) { 
+                        div.style.filter = "drop-shadow(0px 0px 10px #ffeb3b)"; 
+                        div.style.transform = "translateY(-6px)"; 
+                        div.style.zIndex = "10"; 
+                    } 
+                } 
+                
+                const svgWrapper = document.createElement('div');
+                svgWrapper.innerHTML = `<svg class="tri-card" viewBox="0 0 60 52"><polygon points="30,2 2,50 58,50" fill="${getCardHexColor(card.type)}" stroke="#f5d796" stroke-width="2.5"/><text x="30" y="36" text-anchor="middle" font-size="20">${card.icon}</text></svg>`;
+                
+                bindTouchClick(svgWrapper, () => selectCard(index));
+                div.appendChild(svgWrapper);
+                
+                if (selectedCardIndex === index && !card.used) {
+                    const detailsTab = document.createElement('div');
+                    detailsTab.className = 'card-details-tab';
+                    detailsTab.innerText = 'ℹ️ Detalles de carta';
+                    bindTouchClick(detailsTab, (e) => {
+                        if (e) e.stopPropagation();
+                        showCardDetailsFromHand(card.type);
+                    });
+                    div.appendChild(detailsTab);
+                }
+
+                handContainer.appendChild(div); 
+            }); 
+        }
+
+        function activateAbuelaTargeting() {
+            let owner = (gameMode === 'ONLINE') ? myRole : currentTurn;
+            let hasFaceDown = boardTiles.some(t => t.card && t.card.owner === owner && !t.card.faceUp && !t.card.revealed);
+            if (!hasFaceDown) {
+                selectedCardIndex = null;
+                document.getElementById('status-msg').innerText = "No tienes ninguna carta BOCA ABAJO en el tablero para recuperar.";
+                renderHand();
+                renderBoard(); 
+                return;
+            }
+            if (gameState === 'JOKER_TARGETING') { document.getElementById('btn-cancel-joker-target').style.display = 'none'; document.getElementById('btn-trash-joker').style.display = 'none'; }
+            if (gameState === 'PLACEMENT') { document.getElementById('btn-cancel-perro-target').style.display = 'none'; document.getElementById('btn-trash-perro').style.display = 'none'; }
+            
+            gameState = 'ABUELA_TARGETING';
+            document.getElementById('btn-cancel-abuela-target').style.display = 'inline-block';
+            document.getElementById('btn-trash-abuela').style.display = 'inline-block';
+            if (gameMode !== 'TUTORIAL') document.getElementById('status-msg').innerText = "La Abuela 👵: Selecciona una de tus cartas BOCA ABAJO en el tablero.";
+            renderHand();
+            renderBoard(); 
+        }
+
+        function activatePerroPlacement() {
+            let activeFaceUp = (currentTurn === 'player') ? playerFaceUpCount : cpuFaceUpCount;
+            if (activeFaceUp >= 4) {
+                document.getElementById('status-msg').innerText = "Límite de cartas Boca Arriba alcanzado. El Perro 🐕 se descarta.";
+                discardPerroAndProceed();
+                return;
+            }
+
+            let activeHand = getLocalPlayerHand();
+            let perroCard = activeHand.find(c => c.type === 'perro');
+            if (perroCard) selectedCardIndex = activeHand.indexOf(perroCard);
+            
+            gameState = 'PLACEMENT';
+            document.getElementById('btn-cancel-perro-target').style.display = 'inline-block';
+            document.getElementById('btn-trash-perro').style.display = 'inline-block';
+            document.getElementById('status-msg').innerText = "El Perro 🐕: Toca una casilla ROJA libre.";
+            renderHand();
+            renderBoard();
+        }
+
+        function discardAbuelaAndProceed() {
+            let activeHand = getLocalPlayerHand();
+            let abuelaCard = activeHand.find(c => c.type === 'abuela' && !c.used);
+            if (abuelaCard) {
+                abuelaCard.used = true;
+                abuelaCard.discarded = true;
+            }
+            selectedCardIndex = null;
+            gameState = 'PLACEMENT';
+            renderHand();
+            renderBoard();
+            if (gameMode === 'ONLINE') sendNetMsg({ type: 'DISCARD_ABUELA' });
+            passTurnAfterMove();
+        }
+
+        function discardPerroAndProceed() {
+            let activeHand = getLocalPlayerHand();
+            let perroCard = activeHand.find(c => c.type === 'perro' && !c.used);
+            if (perroCard) {
+                perroCard.used = true;
+                perroCard.discarded = true;
+            }
+            selectedCardIndex = null;
+            gameState = 'PLACEMENT';
+            renderHand();
+            renderBoard();
+            if (gameMode === 'ONLINE') sendNetMsg({ type: 'DISCARD_PERRO' });
+            passTurnAfterMove();
+        }
+        
+        function discardAbuelaFromHand() {
+            document.getElementById('btn-cancel-abuela-target').style.display = 'none';
+            document.getElementById('btn-trash-abuela').style.display = 'none';
+            discardAbuelaAndProceed();
+        }
+
+        function discardPerroFromHand() {
+            document.getElementById('btn-cancel-perro-target').style.display = 'none';
+            document.getElementById('btn-trash-perro').style.display = 'none';
+            discardPerroAndProceed();
+        }
+        
+        // --- AQUÍ ESTÁ LA NUEVA FUNCIÓN PARA DESCARTAR EL COMODÍN A MITAD DE TURNO ---
+        function discardJokerFromHand() {
+            document.getElementById('btn-cancel-joker-target').style.display = 'none';
+            document.getElementById('btn-trash-joker').style.display = 'none';
+            
+            let activeHand = getLocalPlayerHand();
+            let joker = activeHand.find(c => c.type === 'comodin' && !c.used);
+            if (joker) {
+                joker.used = true;
+                joker.discarded = true;
+                if (gameMode === 'ONLINE') sendNetMsg({ type: 'DISCARD_JOKER_HAND' });
+            }
+            
+            selectedCardIndex = null;
+            gameState = 'PLACEMENT';
+            
+            renderHand();
+            renderBoard();
+            
+            if (!hasPlayableCards(currentTurn)) {
+                 if (!checkAutomaticPrompts()) {
+                     passTurnAfterMove();
+                 }
+            } else {
+                 document.getElementById('status-msg').innerText = "Comodín descartado. Selecciona otra carta de tu mano.";
+            }
+        }
+        
+        function discardOptionalsAndProceed() {
+            let activeHand = getLocalPlayerHand();
+            let abuelaCard = activeHand.find(c => c.type === 'abuela' && !c.used);
+            if (abuelaCard) {
+                abuelaCard.used = true;
+                abuelaCard.discarded = true;
+                if (gameMode === 'ONLINE') sendNetMsg({ type: 'DISCARD_ABUELA' });
+            }
+            let jokerCard = activeHand.find(c => c.type === 'comodin' && !c.used);
+            if (jokerCard) {
+                jokerCard.used = true;
+                if (gameMode === 'ONLINE') sendNetMsg({ type: 'JOKER_PROMPT_DONE', action: 'discard' });
+            }
+            let perroCard = activeHand.find(c => c.type === 'perro' && !c.used);
+            if (perroCard) {
+                perroCard.used = true;
+                perroCard.discarded = true;
+                if (gameMode === 'ONLINE') sendNetMsg({ type: 'DISCARD_PERRO' });
+            }
+            selectedCardIndex = null;
+            gameState = 'PLACEMENT';
+            renderHand();
+            renderBoard();
+            passTurnAfterMove();
+        }
+
+        function checkAutomaticPrompts() {
+            let activeHand = getLocalPlayerHand();
+            let availableCards = activeHand.filter(c => !c.used);
+            
+            let onlyOptionals = availableCards.length > 0 && availableCards.every(c => c.type === 'abuela' || c.type === 'comodin' || c.type === 'perro');
+            
+            if (onlyOptionals) {
+                if (availableCards.length > 1) {
+                    document.getElementById('optional-prompt-modal').style.display = 'flex';
+                    return true;
+                } else if (availableCards.length === 1) {
+                    let cardType = availableCards[0].type;
+                    if (cardType === 'abuela') document.getElementById('abuela-prompt-modal').style.display = 'flex';
+                    else if (cardType === 'comodin') document.getElementById('joker-prompt-modal').style.display = 'flex';
+                    else if (cardType === 'perro') document.getElementById('perro-prompt-modal').style.display = 'flex';
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        function selectCard(index) {
+            if (gameState !== 'PLACEMENT' && gameState !== 'JOKER_TARGETING' && gameState !== 'ABUELA_TARGETING') { if (gameState === 'WAITING_ACCEPT') document.getElementById('status-msg').innerText = "Fase completada. Presiona Aceptar para entrar en Batalla."; return; }
+            if (gameMode === 'ONLINE' && currentTurn !== myRole) { document.getElementById('status-msg').innerText = "Esperando la jugada del rival..."; return; }
+            if ((gameMode === 'QUICK' || gameMode === 'STORY' || gameMode === 'TIME_ATTACK' || gameMode === 'TUTORIAL') && currentTurn === 'cpu') { document.getElementById('status-msg').innerText = "La CPU está pensando..."; return; }
+            if (gameMode === 'TUTORIAL') { let step = tutorialSequence[tutorialStep]; if (!step || index !== step.cardIndex) return; }
+            
+            let activeHand = getLocalPlayerHand(); if (activeHand[index].used) return; sfxSelectCard(); selectedCardIndex = index;
+            
+            document.getElementById('btn-cancel-joker-target').style.display = 'none'; 
+            document.getElementById('btn-trash-joker').style.display = 'none';
+            document.getElementById('btn-cancel-abuela-target').style.display = 'none'; 
+            document.getElementById('btn-trash-abuela').style.display = 'none';
+            document.getElementById('btn-cancel-perro-target').style.display = 'none'; 
+            document.getElementById('btn-trash-perro').style.display = 'none';
+
+            if (activeHand[index].type === 'comodin') { 
+                gameState = 'JOKER_TARGETING'; 
+                document.getElementById('btn-cancel-joker-target').style.display = 'inline-block';
+                document.getElementById('btn-trash-joker').style.display = 'inline-block';
+                if (gameMode !== 'TUTORIAL') document.getElementById('status-msg').innerText = "Comodín 🐒: Selecciona una de tus ovejas en el tablero."; 
+            } 
+            else if (activeHand[index].type === 'abuela') {
+                activateAbuelaTargeting();
+                return;
+            }
+            else if (activeHand[index].type === 'perro') {
+                let activeFaceUp = (currentTurn === 'player') ? playerFaceUpCount : cpuFaceUpCount;
+                if (activeFaceUp >= 4) {
+                    document.getElementById('status-msg').innerText = "Límite de cartas Boca Arriba agotado. No puedes jugar el Perro 🐕.";
+                    selectedCardIndex = null;
+                    renderHand();
+                    renderBoard();
+                    return;
+                }
+                gameState = 'PLACEMENT'; 
+                document.getElementById('btn-cancel-perro-target').style.display = 'inline-block';
+                document.getElementById('btn-trash-perro').style.display = 'inline-block';
+                if (gameMode !== 'TUTORIAL') document.getElementById('status-msg').innerText = "El Perro 🐕: Toca una casilla roja libre.";
+            }
+            else { 
+                gameState = 'PLACEMENT'; 
+                if (gameMode !== 'TUTORIAL') document.getElementById('status-msg').innerText = `Carta elegida. Toca una casilla válida.`; 
+            }
+            renderHand();
+            renderBoard();
+        }
+
+        function onTileClick(tile) {
+            if (gameState !== 'PLACEMENT' && gameState !== 'JOKER_TARGETING' && gameState !== 'ABUELA_TARGETING') return;
+            if (gameMode === 'ONLINE' && currentTurn !== myRole) return;
+            if ((gameMode === 'QUICK' || gameMode === 'STORY' || gameMode === 'TIME_ATTACK' || gameMode === 'TUTORIAL') && currentTurn === 'cpu') return;
+            let activeHand = getLocalPlayerHand();
+
+            if (gameState === 'ABUELA_TARGETING' || (selectedCardIndex !== null && activeHand[selectedCardIndex] && activeHand[selectedCardIndex].type === 'abuela')) {
+                let targetOwner = (gameMode === 'ONLINE') ? myRole : currentTurn;
+                if (tile.card && tile.card.owner === targetOwner && !tile.card.faceUp && !tile.card.revealed) {
+                    sfxSelectCard();
+                    let recType = tile.card.type;
+                    tile.card = null;
+                    let abuelaCard = activeHand.find(c => c.type === 'abuela');
+                    if (abuelaCard) abuelaCard.used = true;
+                    let recCard = activeHand.find(c => c.type === recType && c.used);
+                    if (recCard) recCard.used = false;
+
+                    if (targetOwner === 'player') playerFaceDownCount--; else cpuFaceDownCount--;
+
+                    selectedCardIndex = null;
+                    pendingTile = null;
+                    gameState = 'PLACEMENT';
+                    document.getElementById('btn-cancel-abuela-target').style.display = 'none';
+                    document.getElementById('btn-trash-abuela').style.display = 'none';
+                    updateCounterUI();
+                    renderBoard();
+                    renderHand();
+
+                    if (gameMode === 'ONLINE') sendNetMsg({ type: 'MOVE_ABUELA', tileId: tile.id });
+                    passTurnAfterMove();
+                    return;
+                } else {
+                    document.getElementById('status-msg').innerText = "La Abuela 👵 solo puede recuperar tus cartas colocadas BOCA ABAJO.";
+                    return;
+                }
+            }
+
+            if (gameState === 'JOKER_TARGETING' || (selectedCardIndex !== null && activeHand[selectedCardIndex] && activeHand[selectedCardIndex].type === 'comodin')) {
+                if (gameMode === 'TUTORIAL') {
+                    let step = tutorialSequence[tutorialStep];
+                    if (step.type === 'joker' && tile.id === step.tileId && tile.card) { sfxPlaceCard(); tile.card.type = 'lobo'; tile.card.icon = '🐺'; tile.card.color = 'red'; tile.card.revealed = true; tile.card.isDisguised = false; let jCard = activeHand.find(c => c.type === 'comodin'); if (jCard) jCard.used = true; selectedCardIndex = null; pendingTile = null; gameState = 'PLACEMENT'; document.getElementById('btn-cancel-joker-target').style.display = 'none'; document.getElementById('btn-trash-joker').style.display = 'none'; renderBoard(); renderHand(); passTurnAfterMove(); } return;
+                }
+                let targetOwner = (gameMode === 'ONLINE') ? myRole : currentTurn;
+                if (tile.card && tile.card.owner === targetOwner && (tile.card.type === 'oveja' || tile.card.type === 'cabra')) {
+                    sfxPlaceCard(); tile.card.type = 'lobo'; tile.card.icon = '🐺'; tile.card.color = 'red'; tile.card.revealed = true; tile.card.isDisguised = false; let jokerCard = activeHand.find(c => c.type === 'comodin'); if (jokerCard) jokerCard.used = true; selectedCardIndex = null; pendingTile = null; gameState = 'PLACEMENT'; document.getElementById('btn-cancel-joker-target').style.display = 'none'; document.getElementById('btn-trash-joker').style.display = 'none'; renderBoard(); renderHand();
+                    if (gameMode === 'ONLINE') sendNetMsg({ type: 'MOVE_JOKER', tileId: tile.id });
+                    if (isJokerPhase) advanceOptionalCheckSequence(); else passTurnAfterMove(); return;
+                } else { selectedCardIndex = null; gameState = 'PLACEMENT'; document.getElementById('btn-cancel-joker-target').style.display = 'none'; document.getElementById('btn-trash-joker').style.display = 'none'; renderHand(); renderBoard(); document.getElementById('status-msg').innerText = "El Comodín solo actúa sobre tus ovejas. Elige carta normal."; return; }
+            }
+
+            if (selectedCardIndex === null) { if (gameMode !== 'TUTORIAL') document.getElementById('status-msg').innerText = "Primero elige una carta de tu mano."; return; }
+            if (tile.card !== null) { if (gameMode !== 'TUTORIAL') document.getElementById('status-msg').innerText = "Esta casilla ya está ocupada."; return; }
+            const card = activeHand[selectedCardIndex];
+            if (!isValidPlacement(card, tile)) { if (gameMode !== 'TUTORIAL') document.getElementById('status-msg').innerText = `¡No puedes colocar esa carta ahí!`; return; }
+            if (gameMode === 'TUTORIAL') { let step = tutorialSequence[tutorialStep]; if (step.type === 'player' && tile.id !== step.tileId) return; }
+
+            pendingTile = tile; const btnFaceUp = document.getElementById('btn-face-up'); const btnFaceDown = document.getElementById('btn-face-down'); const btnCancelChoice = document.getElementById('btn-cancel-choice');
+            let activeFaceUp = (currentTurn === 'player') ? playerFaceUpCount : cpuFaceUpCount; let activeFaceDown = (currentTurn === 'player') ? playerFaceDownCount : cpuFaceDownCount;
+
+            if (gameMode === 'TUTORIAL') {
+                let step = tutorialSequence[tutorialStep]; if (step.faceUp) { btnFaceUp.style.display = 'block'; btnFaceDown.style.display = 'none'; document.getElementById('choice-desc').innerText = "DEBES colocar la carta Boca Arriba (Visible 👁)."; } else { btnFaceUp.style.display = 'none'; btnFaceDown.style.display = 'block'; document.getElementById('choice-desc').innerText = "DEBES colocar la carta Boca Abajo (Oculta 🙈)."; } btnCancelChoice.style.display = 'none';
+            } else if (card.type === 'perro') {
+                btnCancelChoice.style.display = 'inline-block';
+                btnFaceUp.style.display = 'block';
+                btnFaceDown.style.display = 'none';
+                document.getElementById('choice-desc').innerText = "El Perro 🐕 SOLO se puede jugar Boca Arriba (Visible 👁).";
+            } else {
+                btnCancelChoice.style.display = 'inline-block';
+                if (activeFaceUp < 4 && activeFaceDown < 3) { btnFaceUp.style.display = 'block'; btnFaceDown.style.display = 'block'; document.getElementById('choice-desc').innerText = "¿Quieres colocarla visible para todos o boca abajo?"; } 
+                else if (activeFaceUp < 4) { btnFaceUp.style.display = 'block'; btnFaceDown.style.display = 'none'; document.getElementById('choice-desc').innerText = "Tus cartas boca arriba están agotadas. Debes colocarla Boca Arriba."; } 
+                else { btnFaceUp.style.display = 'none'; btnFaceDown.style.display = 'block'; document.getElementById('choice-desc').innerText = "Tus cartas boca arriba están agotadas. Debes colocarla Boca Abajo."; }
+            }
+            document.getElementById('choice-modal').style.display = 'flex';
+        }
+
+        function cancelPlacementChoice() { document.getElementById('choice-modal').style.display = 'none'; pendingTile = null; selectedCardIndex = null; renderHand(); renderBoard(); document.getElementById('status-msg').innerText = "Selección cancelada."; }
+        function confirmPlacement(faceUp) { document.getElementById('choice-modal').style.display = 'none'; sfxPlaceCard(); let activeHand = getLocalPlayerHand(); const card = activeHand[selectedCardIndex]; const tile = pendingTile; let cardOwner = (gameMode === 'ONLINE') ? myRole : currentTurn; tile.card = { owner: cardOwner, type: card.type, icon: card.icon, color: card.color, faceUp: faceUp, revealed: false, isDisguised: true }; if (cardOwner === 'player') { if (faceUp) playerFaceUpCount++; else playerFaceDownCount++; } else { if (faceUp) cpuFaceUpCount++; else cpuFaceDownCount++; } card.used = true; if (gameMode === 'ONLINE') sendNetMsg({ type: 'MOVE_PLACEMENT', cardIdx: selectedCardIndex, tileId: tile.id, faceUp: faceUp }); selectedCardIndex = null; pendingTile = null; document.getElementById('btn-cancel-perro-target').style.display = 'none'; document.getElementById('btn-trash-perro').style.display = 'none'; updateCounterUI(); renderBoard(); renderHand(); passTurnAfterMove(); }
+
+        function passTurnAfterMove() {
+            if (gameMode === 'TUTORIAL') { 
+                document.getElementById('btn-tutorial-next-step').style.display = 'inline-block';
+                document.getElementById('status-msg').innerText = "Revisa el tablero y pulsa Continuar Tutorial ➡️";
+                return; 
+            }
+            
+            let playerHasNormal = hasPlayableCards('player'); 
+            let cpuHasNormal = hasPlayableCards('cpu');
+            
+            if (!playerHasNormal && !cpuHasNormal) { 
+                startOptionalCheckPhase(); 
+                return; 
+            }
+            
+            let previousTurn = currentTurn; 
+            let nextPlayer = (currentTurn === 'player') ? 'cpu' : 'player'; 
+            let nextPlayerHasNormal = (nextPlayer === 'cpu') ? cpuHasNormal : playerHasNormal;
+            
+            if (nextPlayerHasNormal) {
+                currentTurn = nextPlayer;
+            }
+
+            if (gameMode === 'MULTI') {
+                if (currentTurn !== previousTurn) { 
+                    let nextLabel = (currentTurn === 'player') ? "Jugador 1" : "Jugador 2"; 
+                    gameState = 'PASSING_TURN'; 
+                    renderBoard(); 
+                    document.getElementById('finish-turn-title').innerText = `Turno finalizado`; 
+                    document.getElementById('btn-confirm-finish-turn').onclick = () => { 
+                        document.getElementById('finish-turn-modal').style.display = 'none'; 
+                        document.getElementById('start-turn-title').innerText = `¡Turno del ${nextLabel}!`; 
+                        document.getElementById('btn-start-next-player-turn').onclick = () => { 
+                            document.getElementById('start-turn-modal').style.display = 'none'; 
+                            gameState = 'PLACEMENT'; 
+                            updateCounterUI(); renderBoard(); renderHand(); 
+                            document.getElementById('status-msg').innerText = `Turno de ${nextLabel}: Selecciona carta`; 
+                            checkAutomaticPrompts(); 
+                        }; 
+                        document.getElementById('start-turn-modal').style.display = 'flex'; 
+                    }; 
+                    document.getElementById('finish-turn-modal').style.display = 'flex'; 
+                } 
+                else { 
+                    updateCounterUI(); renderBoard(); renderHand(); 
+                    let currLabel = (currentTurn === 'player') ? "Jugador 1" : "Jugador 2"; 
+                    document.getElementById('status-msg').innerText = `Turno de ${currLabel} (El rival no tiene huecos): Selecciona carta`; 
+                    checkAutomaticPrompts(); 
+                }
+            } else if (gameMode === 'ONLINE') { 
+                updateCounterUI(); renderBoard(); renderHand();
+                if (currentTurn !== previousTurn) {
+                    document.getElementById('status-msg').innerText = (currentTurn === myRole) ? "Tu turno: Selecciona una carta" : "Esperando la jugada del rival...";
+                    if (currentTurn === myRole) checkAutomaticPrompts();
+                } else {
+                    document.getElementById('status-msg').innerText = (currentTurn === myRole) ? "Tu turno (El rival no tiene huecos): Selecciona una carta" : "Esperando la jugada del rival (No tienes huecos)...";
+                    if (currentTurn === myRole) checkAutomaticPrompts();
+                }
+            } else { 
+                updateCounterUI(); renderBoard(); renderHand();
+                if (currentTurn === 'cpu') { 
+                    document.getElementById('status-msg').innerText = "La CPU está pensando..."; 
+                    setTimeout(cpuUltraTurn, 400); 
+                } else { 
+                    document.getElementById('status-msg').innerText = (currentTurn === previousTurn) ? "Tu turno (CPU no tiene huecos): Selecciona una carta" : "Tu turno: Selecciona una carta";
+                    checkAutomaticPrompts();
+                } 
+            }
+        }
+
+        function isValidPlacement(card, tile) { if (card.color === 'yellow') return true; if (card.type === 'cabra') return tile.color === 'black'; return card.color === tile.color; }
+        
+        function cpuUltraTurn() {
+            if (gameState !== 'PLACEMENT') return; let depth = (gameMode === 'STORY') ? Math.min(3, currentStage) : 3;
+            let bestMove = minimaxSearch(depth, -Infinity, Infinity, true);
+            if (bestMove && bestMove.move) {
+                let m = bestMove.move;
+                if (m.isAbuelaDiscard) {
+                    let cpuAbuela = cpuHand.find(c => c.type === 'abuela' && !c.used);
+                    if (cpuAbuela) { cpuAbuela.used = true; cpuAbuela.discarded = true; }
+                    document.getElementById('status-msg').innerText = "La CPU ha descartado a La Abuela 👵.";
+                } else if (m.isAbuela) {
+                    let tile = boardTiles[m.tileId];
+                    let recType = tile.card.type;
+                    let cpuAbuela = cpuHand.find(c => c.type === 'abuela' && !c.used);
+                    if (cpuAbuela) cpuAbuela.used = true;
+                    let recCard = cpuHand.find(c => c.type === recType && c.used);
+                    if (recCard) recCard.used = false;
+                    tile.card = null;
+                    cpuFaceDownCount--;
+                    sfxSelectCard(); renderBoard();
+                    document.getElementById('status-msg').innerText = "La CPU ha usado a La Abuela 👵 para recuperar una carta.";
+                } else if (m.isPerroDiscard) {
+                    let cpuPerro = cpuHand.find(c => c.type === 'perro' && !c.used);
+                    if (cpuPerro) { cpuPerro.used = true; cpuPerro.discarded = true; }
+                    document.getElementById('status-msg').innerText = "La CPU ha descartado al Perro 🐕.";
+                } else if (m.isJoker) { let tile = boardTiles[m.tileId]; let cpuJoker = cpuHand.find(c => c.type === 'comodin' && !c.used); tile.card.type = 'lobo'; tile.card.icon = '🐺'; tile.card.color = 'red'; tile.card.revealed = true; tile.card.isDisguised = false; if (cpuJoker) cpuJoker.used = true; sfxPlaceCard(); renderBoard(); document.getElementById('status-msg').innerText = "La CPU ha usado su Comodín 🐒."; } 
+                else { let card = cpuHand[m.cardIdx]; let tile = boardTiles[m.tileId]; if (m.faceUp) cpuFaceUpCount++; else cpuFaceDownCount++; tile.card = { owner: 'cpu', type: card.type, icon: card.icon, color: card.color, faceUp: m.faceUp, revealed: false, isDisguised: true }; card.used = true; sfxPlaceCard(); renderBoard(); }
+            }
+            passTurnAfterMove();
+        }
+
+        function minimaxSearch(depth, alpha, beta, isMaximizing) { if (depth === 0 || (!hasPlayableCards('player') && !hasPlayableCards('cpu'))) return { score: evaluateAdvancedBoardState() }; let bestScore = isMaximizing ? -Infinity : Infinity; let bestMove = null; let possibleMoves = generateLegalMoves(isMaximizing ? 'cpu' : 'player'); if (possibleMoves.length === 0) return { score: evaluateAdvancedBoardState() }; for (let move of possibleMoves) { applySimulatedMove(move, isMaximizing ? 'cpu' : 'player'); let result = minimaxSearch(depth - 1, alpha, beta, !isMaximizing); undoSimulatedMove(move, isMaximizing ? 'cpu' : 'player'); if (isMaximizing) { if (result.score > bestScore) { bestScore = result.score; bestMove = move; } alpha = Math.max(alpha, bestScore); } else { if (result.score < bestScore) { bestScore = result.score; bestMove = move; } beta = Math.min(beta, bestScore); } if (beta <= alpha) break; } return { score: bestScore, move: bestMove }; }
+        
+        function generateLegalMoves(owner) { 
+            let moves = []; 
+            let hand = (owner === 'cpu') ? cpuHand : playerHand; 
+            let faceUpCount = (owner === 'cpu') ? cpuFaceUpCount : playerFaceUpCount; 
+            let faceDownCount = (owner === 'cpu') ? cpuFaceDownCount : playerFaceDownCount; 
+            let mustFaceUp = (faceDownCount >= 3); 
+            let mustFaceDown = (faceUpCount >= 4); 
+            let availableCards = hand.map((c, idx) => ({ ...c, idx })).filter(c => !c.used); 
+            let emptyTiles = boardTiles.filter(t => t.card === null); 
+            let normalCards = availableCards.filter(c => c.type !== 'comodin' && c.type !== 'abuela' && c.type !== 'perro');
+
+            let abuelaCard = availableCards.find(c => c.type === 'abuela');
+            if (abuelaCard) {
+                let ownFaceDownTiles = boardTiles.filter(t => t.card && t.card.owner === owner && !t.card.faceUp && !t.card.revealed);
+                ownFaceDownTiles.forEach(tile => moves.push({ isAbuela: true, isJoker: false, isPerroDiscard: false, tileId: tile.id, cardIdx: abuelaCard.idx }));
+                let hasNormal = normalCards.some(c => emptyTiles.some(t => isValidPlacement(c, t)));
+                if (!hasNormal) {
+                    moves.push({ isAbuelaDiscard: true, cardIdx: abuelaCard.idx });
+                }
+            }
+
+            let jokerCard = availableCards.find(c => c.type === 'comodin'); 
+            if (jokerCard) { 
+                let ownSheepTiles = boardTiles.filter(t => t.card && (t.card.owner === owner && (t.card.type === 'oveja' || t.card.type === 'cabra'))); 
+                ownSheepTiles.forEach(tile => moves.push({ isJoker: true, isAbuela: false, isPerroDiscard: false, tileId: tile.id, cardIdx: jokerCard.idx })); 
+            } 
+
+            let perroCard = availableCards.find(c => c.type === 'perro');
+            if (perroCard) {
+                emptyTiles.forEach(tile => {
+                    if (isValidPlacement(perroCard, tile)) {
+                        if (!mustFaceDown) { 
+                            moves.push({ isJoker: false, isAbuela: false, isPerroDiscard: false, tileId: tile.id, cardIdx: perroCard.idx, faceUp: true, cardType: perroCard.type });
+                        }
+                    }
+                });
+                moves.push({ isPerroDiscard: true, cardIdx: perroCard.idx }); 
+            }
+
+            normalCards.forEach(card => { 
+                emptyTiles.forEach(tile => { 
+                    if (isValidPlacement(card, tile)) { 
+                        let visibilities = []; 
+                        if (mustFaceUp && !mustFaceDown) visibilities = [true]; 
+                        else if (mustFaceDown && !mustFaceUp) visibilities = [false]; 
+                        else if (!mustFaceUp && !mustFaceDown) visibilities = [false, true]; 
+                        visibilities.forEach(faceUp => moves.push({ isJoker: false, isAbuela: false, isPerroDiscard: false, tileId: tile.id, cardIdx: card.idx, faceUp: faceUp, cardType: card.type })); 
+                    } 
+                }); 
+            }); 
+            return moves; 
+        }
+        
+        let simStateStack = [];
+        function applySimulatedMove(move, owner) { 
+            let hand = (owner === 'cpu') ? cpuHand : playerHand;
+            if (move.isAbuelaDiscard) {
+                simStateStack.push({ isAbuelaDiscard: true, cardIdx: move.cardIdx });
+                hand[move.cardIdx].used = true;
+                return;
+            }
+            if (move.isPerroDiscard) {
+                simStateStack.push({ isPerroDiscard: true, cardIdx: move.cardIdx });
+                hand[move.cardIdx].used = true;
+                return;
+            }
+            let tile = boardTiles[move.tileId]; 
+            simStateStack.push({ tileId: move.tileId, prevCard: tile.card ? { ...tile.card } : null, isJoker: move.isJoker, isAbuela: move.isAbuela, cardIdx: move.cardIdx }); 
+            if (move.isAbuela) {
+                let recType = tile.card.type;
+                tile.card = null;
+                let recCard = hand.find(c => c.type === recType && c.used);
+                if (recCard) recCard.used = false;
+                hand[move.cardIdx].used = true;
+            } else if (move.isJoker) { 
+                tile.card.type = 'lobo'; 
+                tile.card.icon = '🐺'; 
+                tile.card.color = 'red'; 
+                tile.card.revealed = true; 
+            } else { 
+                let card = hand[move.cardIdx]; 
+                tile.card = { owner: owner, type: card.type, icon: card.icon, color: card.color, faceUp: move.faceUp, revealed: false }; 
+                card.used = true; 
+            } 
+        }
+        function undoSimulatedMove(move, owner) { 
+            let hand = (owner === 'cpu') ? cpuHand : playerHand; 
+            let state = simStateStack.pop(); 
+            if (state.isAbuelaDiscard || state.isPerroDiscard) {
+                hand[state.cardIdx].used = false;
+                return;
+            }
+            let tile = boardTiles[state.tileId]; 
+            if (state.isAbuela) {
+                let recType = state.prevCard.type;
+                let recCard = hand.find(c => c.type === recType && !c.used);
+                if (recCard) recCard.used = true;
+                hand[state.cardIdx].used = false;
+                tile.card = state.prevCard;
+            } else {
+                tile.card = state.prevCard; 
+                hand[state.cardIdx].used = false; 
+            }
+        }
+        
+        function evaluateAdvancedBoardState() { 
+            let score = 0; let playerSheepAlive = 0, cpuSheepAlive = 0; let playerWolvesAlive = 0, cpuWolvesAlive = 0; 
+            let simTiles = boardTiles.map(t => { if (!t.card) return null; if (!t.card.revealed && !t.card.faceUp && t.card.owner === 'player') return { ...t.card, type: estimatePlayerHiddenCard(t) }; return t.card; }); 
+            let deadWolves = new Set(); 
+            boardTiles.forEach((tile, i) => { 
+                let card = simTiles[i]; 
+                if (card && card.type === 'pastor') { 
+                    adjacencyMap[i].forEach(nIdx => { 
+                        let nCard = simTiles[nIdx]; 
+                        if (nCard && (nCard.type === 'lobo' || nCard.type === 'alfa') && nCard.owner !== card.owner) { 
+                            let isProtected = false; 
+                            if (nCard.type === 'lobo') { isProtected = adjacencyMap[nIdx].some(adjIdx => simTiles[adjIdx] && simTiles[adjIdx].type === 'alfa' && simTiles[adjIdx].owner === nCard.owner); } 
+                            if (!isProtected) deadWolves.add(nIdx); 
+                        } 
+                    }); 
+                } 
+            }); 
+            
+            let deadPerros = new Set();
+            boardTiles.forEach((tile, i) => {
+                let card = simTiles[i];
+                if (card && card.type === 'perro') {
+                    let hasEnemyAlfa = adjacencyMap[i].some(nIdx => simTiles[nIdx] && simTiles[nIdx].type === 'alfa' && simTiles[nIdx].owner !== card.owner && !deadWolves.has(nIdx));
+                    if (hasEnemyAlfa) deadPerros.add(i);
+                }
+            });
+
+            let deadSheep = new Set(); 
+            boardTiles.forEach((tile, i) => { 
+                let card = simTiles[i]; 
+                if (card && (card.type === 'oveja' || card.type === 'cabra')) { 
+                    let attackers = adjacencyMap[i].filter(nIdx => { let nCard = simTiles[nIdx]; return nCard && (nCard.type === 'lobo' || nCard.type === 'alfa') && nCard.owner !== card.owner && !deadWolves.has(nIdx); });
+                    if (attackers.length > 0) {
+                        let hasAlliedPerro = adjacencyMap[i].some(nIdx => { let nCard = simTiles[nIdx]; return nCard && nCard.type === 'perro' && nCard.owner === card.owner && !deadPerros.has(nIdx); });
+                        let req = hasAlliedPerro ? 2 : 1;
+                        if (attackers.length >= req) deadSheep.add(i);
+                    }
+                } 
+            }); 
+            
+            boardTiles.forEach((tile, i) => { 
+                let card = simTiles[i]; 
+                if (card) { 
+                    if (card.type === 'oveja' && !deadSheep.has(i)) { if (card.owner === 'cpu') cpuSheepAlive++; else playerSheepAlive++; } 
+                    else if (card.type === 'cabra') { if (card.owner === 'cpu') cpuSheepAlive+=0.66; else playerSheepAlive+=0.66; } 
+                    else if ((card.type === 'lobo' || card.type === 'alfa') && !deadWolves.has(i)) { if (card.owner === 'cpu') cpuWolvesAlive++; else playerWolvesAlive++; } 
+                } 
+            }); 
+            
+            score += (cpuSheepAlive * 30) + (cpuWolvesAlive * 10); 
+            score -= (playerSheepAlive * 30) + (playerWolvesAlive * 10); 
+            
+            boardTiles.forEach((tile, i) => { 
+                let card = simTiles[i]; 
+                if (card && card.type === 'piedra') { 
+                    if (card.owner === 'cpu') score += 10;
+                    else score -= 10;
+                    if (!card.faceUp && card.owner === 'cpu') {
+                        let wasteEnemyWolf = adjacencyMap[i].some(nIdx => simTiles[nIdx] && simTiles[nIdx].owner === 'player' && (simTiles[nIdx].type === 'lobo' || simTiles[nIdx].type === 'alfa')); 
+                        if (wasteEnemyWolf) score += 10; 
+                    }
+                }
+                if (card && card.type === 'perro') {
+                    if (card.owner === 'cpu') score -= 30; // Castigo de -3 puntos
+                    else score += 30;
+                }
+            }); 
+            
+            let p1AbuelaUsed = playerHand.some(c => c.type === 'abuela' && c.used && !c.discarded); let p2AbuelaUsed = cpuHand.some(c => c.type === 'abuela' && c.used && !c.discarded); if (p2AbuelaUsed) score -= 10; if (p1AbuelaUsed) score += 10; 
+            
+            return score; 
+        }
+        function estimatePlayerHiddenCard(tile) { let usedPlayerCards = playerHand.filter(c => c.used).map(c => c.type); let totalHand = playerHand.map(c => c.type); usedPlayerCards.forEach(type => { let idx = totalHand.indexOf(type); if (idx !== -1) totalHand.splice(idx, 1); }); if (tile.color === 'black') { if (totalHand.includes('oveja')) return 'oveja'; if (totalHand.includes('piedra')) return 'piedra'; } return 'lobo'; }
+
+        let jokerPhaseStep = 0;
+        function startOptionalCheckPhase() { if (gameTimerInterval) clearInterval(gameTimerInterval); isJokerPhase = true; jokerPhaseStep = 0; advanceOptionalCheckSequence(); }
+        
+        function checkPlayerOptionalPhase() { 
+            let hasOptionals = playerHand.some(c => !c.used && (c.type === 'comodin' || c.type === 'abuela' || c.type === 'perro'));
+            if (hasOptionals) { 
+                currentTurn = 'player'; 
+                if (gameMode === 'ONLINE' && myRole !== 'player') { document.getElementById('status-msg').innerText = "Esperando decisión de cartas opcionales del Anfitrión..."; } 
+                else { checkAutomaticPrompts(); } 
+            } else checkCpuOptionalPhase(); 
+        }
+
+        function checkCpuOptionalPhase() { 
+            let hasOptionals = cpuHand.some(c => !c.used && (c.type === 'comodin' || c.type === 'abuela' || c.type === 'perro'));
+            if (hasOptionals) { 
+                if (gameMode === 'MULTI' || (gameMode === 'ONLINE' && myRole === 'cpu')) { 
+                    currentTurn = 'cpu'; 
+                    checkAutomaticPrompts(); 
+                    return; 
+                } else if (gameMode === 'ONLINE' && myRole === 'player') { 
+                    document.getElementById('status-msg').innerText = "Esperando decisión de cartas opcionales del Invitado..."; 
+                    return; 
+                } else { 
+                    let bestMove = minimaxSearch(2, -Infinity, Infinity, true); 
+                    if (bestMove && bestMove.move && bestMove.move.isJoker) { 
+                        let targetTile = boardTiles[bestMove.move.tileId]; targetTile.card.type = 'lobo'; targetTile.card.icon = '🐺'; targetTile.card.color = 'red'; targetTile.card.revealed = true; targetTile.card.isDisguised = false; let joker = cpuHand.find(c => c.type === 'comodin'); joker.used = true; sfxPlaceCard(); renderBoard(); document.getElementById('status-msg').innerText = "La CPU ha usado su Comodín 🐒."; 
+                    } else if (bestMove && bestMove.move && bestMove.move.cardType === 'perro' && !bestMove.move.isPerroDiscard) {
+                        let perroCard = cpuHand[bestMove.move.cardIdx]; let tile = boardTiles[bestMove.move.tileId]; if (bestMove.move.faceUp) cpuFaceUpCount++; else cpuFaceDownCount++; tile.card = { owner: 'cpu', type: perroCard.type, icon: perroCard.icon, color: perroCard.color, faceUp: bestMove.move.faceUp, revealed: false, isDisguised: true }; perroCard.used = true; sfxPlaceCard(); renderBoard(); document.getElementById('status-msg').innerText = "La CPU ha colocado a su Perro 🐕.";
+                    } else { 
+                        cpuHand.forEach(c => { if(!c.used && (c.type === 'comodin' || c.type === 'abuela' || c.type === 'perro')) { c.used = true; c.discarded = true; } });
+                    } 
+                } 
+            } 
+            finishPlacementPhase(); 
+        }
+
+        function advanceOptionalCheckSequence() { if (jokerPhaseStep === 0) { jokerPhaseStep = 1; checkPlayerOptionalPhase(); } else if (jokerPhaseStep === 1) { jokerPhaseStep = 2; checkCpuOptionalPhase(); } else { finishPlacementPhase(); } }
+        
+        function prepareJokerTargetSelection() { document.getElementById('joker-prompt-modal').style.display = 'none'; gameState = 'JOKER_TARGETING'; let activeHand = getLocalPlayerHand(); let jokerCard = activeHand.find(c => c.type === 'comodin'); selectedCardIndex = activeHand.indexOf(jokerCard); document.getElementById('btn-cancel-joker-target').style.display = 'inline-block'; document.getElementById('btn-trash-joker').style.display = 'inline-block'; renderHand(); renderBoard(); document.getElementById('status-msg').innerText = "Selecciona una de tus ovejas en el tablero para transformarla."; }
+        function cancelJokerTargetSelection() { document.getElementById('btn-cancel-joker-target').style.display = 'none'; document.getElementById('btn-trash-joker').style.display = 'none'; selectedCardIndex = null; gameState = 'PLACEMENT'; renderHand(); renderBoard(); if (isJokerPhase) { if (gameMode === 'ONLINE') sendNetMsg({ type: 'JOKER_PROMPT_DONE', action: 'discard' }); advanceOptionalCheckSequence(); } else { document.getElementById('status-msg').innerText = "Comodín cancelado. Selecciona otra carta de tu mano."; } }
+        function cancelAbuelaTargetSelection() { document.getElementById('btn-cancel-abuela-target').style.display = 'none'; document.getElementById('btn-trash-abuela').style.display = 'none'; selectedCardIndex = null; gameState = 'PLACEMENT'; renderHand(); renderBoard(); document.getElementById('status-msg').innerText = "La Abuela cancelada. Selecciona otra carta de tu mano."; }
+        function cancelPerroTargetSelection() { document.getElementById('btn-cancel-perro-target').style.display = 'none'; document.getElementById('btn-trash-perro').style.display = 'none'; selectedCardIndex = null; gameState = 'PLACEMENT'; renderHand(); renderBoard(); if (isJokerPhase) { if (gameMode === 'ONLINE') sendNetMsg({ type: 'DISCARD_PERRO' }); advanceOptionalCheckSequence(); } else { document.getElementById('status-msg').innerText = "Perro cancelado. Selecciona otra carta de tu mano."; } }
+        
+        function discardJokerAndProceed() { document.getElementById('joker-prompt-modal').style.display = 'none'; let activeHand = getLocalPlayerHand(); let joker = activeHand.find(c => c.type === 'comodin'); if (joker) { joker.used = true; joker.discarded = true; } if (gameMode === 'ONLINE') sendNetMsg({ type: 'JOKER_PROMPT_DONE', action: 'discard' }); advanceOptionalCheckSequence(); }
+        // Se ha borrado discardJokerFromHand que existía aquí abajo llamando erróneamente a discardJokerAndProceed().
+
+        function finishPlacementPhase() { gameState = 'WAITING_ACCEPT'; currentTurn = 'player'; document.getElementById('btn-cancel-joker-target').style.display = 'none'; document.getElementById('btn-cancel-abuela-target').style.display = 'none'; document.getElementById('btn-cancel-perro-target').style.display = 'none'; document.getElementById('btn-trash-joker').style.display = 'none'; document.getElementById('btn-trash-abuela').style.display = 'none'; document.getElementById('btn-trash-perro').style.display = 'none'; document.getElementById('status-msg').innerText = "Fase completada. Presiona Aceptar para entrar en Batalla."; document.getElementById('btn-accept').style.display = 'inline-block'; }
+
+        function resolveRound() {
+            if(gameTimerInterval) clearInterval(gameTimerInterval);
+            gameState = 'RESOLVED'; document.getElementById('btn-accept').style.display = 'none'; sfxRevealCards();
+            boardTiles.forEach(tile => { if (tile.card) tile.card.revealed = true; }); renderBoard(); document.getElementById('status-msg').innerText = "Revelando cartas en juego...";
+            setTimeout(() => {
+                // FASE 1: PASTORES
+                let lobosToRemove = []; 
+                boardTiles.forEach(tile => { 
+                    if (tile.card && tile.card.type === 'pastor') { 
+                        getAdjacentTiles(tile).forEach(adjTile => { 
+                            if (adjTile.card && (adjTile.card.type === 'lobo' || adjTile.card.type === 'alfa') && adjTile.card.owner !== tile.card.owner) { 
+                                let isProtected = false; 
+                                if (adjTile.card.type === 'lobo') { isProtected = getAdjacentTiles(adjTile).some(t => t.card && t.card.type === 'alfa' && t.card.owner === adjTile.card.owner); } 
+                                if (!isProtected && !lobosToRemove.includes(adjTile)) lobosToRemove.push(adjTile); 
+                            } 
+                        }); 
+                    } 
+                });
+                processEliminationQueue(lobosToRemove, 0, () => {
+                    // FASE 2: LOBOS ALFA SOBRE PERROS
+                    let perrosToRemove = [];
+                    boardTiles.forEach(tile => {
+                        if (tile.card && tile.card.type === 'alfa') {
+                            getAdjacentTiles(tile).forEach(adjTile => {
+                                if (adjTile.card && adjTile.card.type === 'perro' && adjTile.card.owner !== tile.card.owner) {
+                                    if (!perrosToRemove.includes(adjTile)) perrosToRemove.push(adjTile);
+                                }
+                            });
+                        }
+                    });
+                    processEliminationQueue(perrosToRemove, 0, () => {
+                        // FASE 3: LOBOS SOBRE OVEJAS
+                        let ovejasToRemove = []; 
+                        boardTiles.forEach(tile => { 
+                            if (tile.card && (tile.card.type === 'oveja' || tile.card.type === 'cabra')) { 
+                                let attackers = getAdjacentTiles(tile).filter(adjTile => adjTile.card && (adjTile.card.type === 'lobo' || adjTile.card.type === 'alfa') && adjTile.card.owner !== tile.card.owner); 
+                                if (attackers.length > 0) {
+                                    let hasAlliedPerro = getAdjacentTiles(tile).some(adjTile => adjTile.card && adjTile.card.type === 'perro' && adjTile.card.owner === tile.card.owner);
+                                    let requiredAttackers = hasAlliedPerro ? 2 : 1;
+                                    if (attackers.length >= requiredAttackers) {
+                                        if (!ovejasToRemove.includes(tile)) ovejasToRemove.push(tile);
+                                    }
+                                }
+                            } 
+                        });
+                        processEliminationQueue(ovejasToRemove, 0, () => { 
+                            resolveCabras(); 
+                        });
+                    });
+                });
+            }, 1200);
+        }
+
+        function processEliminationQueue(queue, index, onComplete) {
+            if (index >= queue.length) { onComplete(); return; }
+            let targetTile = queue[index];
+            if (targetTile && targetTile.card) {
+                let ownerText = "Jugador 1"; if (gameMode === 'MULTI') ownerText = (targetTile.card.owner === 'player') ? "Jugador 1" : "Jugador 2"; else if (gameMode === 'ONLINE') ownerText = (targetTile.card.owner === myRole) ? "Tú" : "Rival"; else ownerText = (targetTile.card.owner === 'player') ? "Jugador" : "CPU";
+                
+                let typeText = "Oveja 🐑";
+                if (targetTile.card.type === 'lobo') typeText = "Lobo 🐺";
+                else if (targetTile.card.type === 'alfa') typeText = "Lobo Alfa 🐉";
+                else if (targetTile.card.type === 'perro') typeText = "Perro 🐕";
+
+                let causeText = "eliminada por el Lobo 🐺";
+                if (targetTile.card.type === 'lobo' || targetTile.card.type === 'alfa') causeText = "eliminado por el Pastor 👨‍🌾";
+                else if (targetTile.card.type === 'perro') causeText = "eliminado por el Lobo Alfa 🐉";
+                else if (targetTile.card.type === 'cabra') causeText = "eliminada por el Lobo";
+                
+                let msg = `¡${typeText} de ${ownerText} ${causeText}!`;
+                document.getElementById('status-msg').innerText = msg; 
+                battleLogMessages.push(`⚔️ ${typeText} de ${ownerText} (Casilla ${targetTile.id}) fue ${causeText}.`);
+                
+                sfxEliminateCard(); targetTile.card = null; renderBoard();
+            }
+            setTimeout(() => { processEliminationQueue(queue, index + 1, onComplete); }, 1400);
+        }
+
+        function resolveCabras() {
+            let attackedCabras = [];
+            boardTiles.forEach(tile => { if (tile.card && tile.card.type === 'cabra') { let hasEnemyWolf = getAdjacentTiles(tile).some(adj => adj.card && (adj.card.type === 'lobo' || adj.card.type === 'alfa') && adj.card.owner !== tile.card.owner); if (hasEnemyWolf) attackedCabras.push(tile); } });
+            if (attackedCabras.length > 0) {
+                let p1Sheep = boardTiles.filter(t => t.card && t.card.type === 'oveja' && t.card.owner === 'player').length; let p2Sheep = boardTiles.filter(t => t.card && t.card.type === 'oveja' && t.card.owner === 'cpu').length;
+                let p1Wolves = boardTiles.filter(t => t.card && (t.card.type === 'lobo' || t.card.type === 'alfa') && t.card.owner === 'player').length; let p2Wolves = boardTiles.filter(t => t.card && (t.card.type === 'lobo' || t.card.type === 'alfa') && t.card.owner === 'cpu').length;
+                if (attackedCabras.length === 2) { let g1 = attackedCabras[0]; let g2 = attackedCabras[1]; if (g1.card && g2.card && g1.card.owner !== g2.card.owner) { let sheepA = (g1.card.owner === 'player') ? p1Sheep : p2Sheep; let sheepB = (g2.card.owner === 'player') ? p1Sheep : p2Sheep; let wolvesA = (g1.card.owner === 'player') ? p1Wolves : p2Wolves; let wolvesB = (g2.card.owner === 'player') ? p1Wolves : p2Wolves; if (sheepA === sheepB && wolvesA === wolvesB) { let safe1 = boardTiles.filter(t => t.card === null && !getAdjacentTiles(t).some(adj => adj.card && (adj.card.type === 'lobo' || adj.card.type === 'alfa') && adj.card.owner !== g1.card.owner)); let safe2 = boardTiles.filter(t => t.card === null && !getAdjacentTiles(t).some(adj => adj.card && (adj.card.type === 'lobo' || adj.card.type === 'alfa') && adj.card.owner !== g2.card.owner)); let canBothSurvive = false; for (let s1 of safe1) { for (let s2 of safe2) { if (s1.id !== s2.id) canBothSurvive = true; } } if (!canBothSurvive && safe1.length > 0 && safe2.length > 0) { g1.mustDieTie = true; g2.mustDieTie = true; } } } }
+                attackedCabras.sort((a, b) => { let sheepA = (a.card.owner === 'player') ? p1Sheep : p2Sheep; let sheepB = (b.card.owner === 'player') ? p1Sheep : p2Sheep; if (sheepB !== sheepA) return sheepB - sheepA; let wolvesA = (a.card.owner === 'player') ? p1Wolves : p2Wolves; let wolvesB = (b.card.owner === 'player') ? p1Wolves : p2Wolves; return wolvesB - wolvesA; });
+                processGoatEscapeQueue(attackedCabras, 0, () => { document.getElementById('status-msg').innerText = "Combate finalizado. Calculando puntos..."; boardTiles.forEach(t => { if(t.card && t.card.type === 'cabra') t.card.isDisguised = false; }); renderBoard(); setTimeout(determineWinner, 800); });
+            } else { document.getElementById('status-msg').innerText = "Combate finalizado. Calculando puntos..."; boardTiles.forEach(t => { if(t.card && t.card.type === 'cabra') t.card.isDisguised = false; }); renderBoard(); setTimeout(determineWinner, 800); }
+        }
+
+        function processGoatEscapeQueue(queue, index, onComplete) {
+            if (index >= queue.length) { onComplete(); return; } let sourceTile = queue[index];
+            if (!sourceTile.card || sourceTile.card.type !== 'cabra') { processGoatEscapeQueue(queue, index + 1, onComplete); return; }
+            sourceTile.card.isDisguised = false; renderBoard(); sfxBaa(); 
+            let ownerText = (sourceTile.card.owner === 'player') ? ((gameMode === 'MULTI') ? "Jugador 1" : (gameMode === 'ONLINE' && myRole==='cpu' ? "Rival" : "Tú")) : ((gameMode === 'MULTI') ? "Jugador 2" : (gameMode === 'ONLINE' && myRole==='player' ? "Rival" : "CPU"));
+            if (sourceTile.mustDieTie) { 
+                let msg = `¡Empate letal! La Cabra 🐐 de ${ownerText} choca peleando por el único hueco y muere.`;
+                document.getElementById('status-msg').innerText = msg; 
+                battleLogMessages.push(`💥 La Cabra 🐐 de ${ownerText} (Casilla ${sourceTile.id}) murió al chocar con otra cabra.`);
+                setTimeout(() => { sourceTile.card = null; renderBoard(); sfxEliminateCard(); setTimeout(() => { processGoatEscapeQueue(queue, index + 1, onComplete); }, 1800); }, 1000); 
+                return; 
+            }
+            let safeTiles = boardTiles.filter(t => { if (t.card !== null) return false; let hasEnemyWolf = getAdjacentTiles(t).some(adj => adj.card && (adj.card.type === 'lobo' || adj.card.type === 'alfa') && adj.card.owner !== sourceTile.card.owner); return !hasEnemyWolf; });
+            if (safeTiles.length > 0) { 
+                let targetTile = safeTiles[Math.floor(Math.random() * safeTiles.length)]; 
+                let msg = `¡Lobo a la vista! La Cabra 🐐 de ${ownerText} salta a una casilla segura.`;
+                document.getElementById('status-msg').innerText = msg; 
+                battleLogMessages.push(`🏃 La Cabra 🐐 de ${ownerText} (Casilla ${sourceTile.id}) escapó a la Casilla ${targetTile.id}.`);
+                targetTile.card = sourceTile.card; sourceTile.card = null; 
+                setTimeout(() => { renderBoard(); sfxSelectCard(); setTimeout(() => { processGoatEscapeQueue(queue, index + 1, onComplete); }, 1800); }, 1000); 
+            } 
+            else { 
+                let msg = `¡La Cabra 🐐 de ${ownerText} no tiene dónde huir y es eliminada!`;
+                document.getElementById('status-msg').innerText = msg; 
+                battleLogMessages.push(`☠️ La Cabra 🐐 de ${ownerText} (Casilla ${sourceTile.id}) fue devorada al no tener escapatoria.`);
+                setTimeout(() => { sourceTile.card = null; renderBoard(); sfxEliminateCard(); setTimeout(() => { processGoatEscapeQueue(queue, index + 1, onComplete); }, 1800); }, 1000); 
+            }
+        }
+
+        function getAdjacentTiles(targetTile) { return boardTiles.filter(t => { if (t.id === targetTile.id) return false; return t.points.some(p1 => targetTile.points.some(p2 => Math.hypot(p1.x - p2.x, p1.y - p2.y) < 0.1)); }); }
+
+        function determineWinner() {
+            let playerSheep = 0, playerWolves = 0, playerCabra = 0; let cpuSheep = 0, cpuWolves = 0, cpuCabra = 0;
+            boardTiles.forEach(tile => { if (tile.card) { if (tile.card.owner === 'player') { if (tile.card.type === 'oveja') playerSheep++; if (tile.card.type === 'lobo' || tile.card.type === 'alfa') playerWolves++; if (tile.card.type === 'cabra') playerCabra++; } else if (tile.card.owner === 'cpu') { if (tile.card.type === 'oveja') cpuSheep++; if (tile.card.type === 'lobo' || tile.card.type === 'alfa') cpuWolves++; if (tile.card.type === 'cabra') cpuCabra++; } } });
+            
+            let p1PiedraBonus = boardTiles.filter(t => t.card && t.card.type === 'piedra' && t.card.owner === 'player').length * 1;
+            let p2PiedraBonus = boardTiles.filter(t => t.card && t.card.type === 'piedra' && t.card.owner === 'cpu').length * 1;
+
+            let p1AbuelaPenalty = playerHand.some(c => c.type === 'abuela' && c.used && !c.discarded) ? 1 : 0;
+            let p2AbuelaPenalty = cpuHand.some(c => c.type === 'abuela' && c.used && !c.discarded) ? 1 : 0;
+            
+            let p1PerroPenalty = boardTiles.filter(t => t.card && t.card.type === 'perro' && t.card.owner === 'player').length * 3;
+            let p2PerroPenalty = boardTiles.filter(t => t.card && t.card.type === 'perro' && t.card.owner === 'cpu').length * 3;
+            
+            const playerScore = (playerSheep * 3) + (playerWolves * 1) + (playerCabra * 2) + p1PiedraBonus - p1AbuelaPenalty - p1PerroPenalty;
+            const cpuScore = (cpuSheep * 3) + (cpuWolves * 1) + (cpuCabra * 2) + p2PiedraBonus - p2AbuelaPenalty - p2PerroPenalty;
+
+            let roundWinner = null;
+            if (playerScore > cpuScore) { roundWinner = 'player'; winsPlayer++; } else if (cpuScore > playerScore) { roundWinner = 'cpu'; winsCPU++; }
+            document.getElementById('score-player').innerText = winsPlayer; document.getElementById('score-cpu').innerText = winsCPU;
+            let winsNeeded = (matchFormat === 'BO3') ? 2 : 1; let isMatchOver = false; if (winsPlayer >= winsNeeded || winsCPU >= winsNeeded) { isMatchOver = true; }
+            let winnerText = "";
+            if (roundWinner === 'player') { if (gameMode === 'MULTI') winnerText = "¡Gana el Jugador 1 la ronda!"; else if (gameMode === 'ONLINE') winnerText = (myRole === 'player') ? "¡Ganaste la ronda!" : "¡Gana el Rival la ronda!"; else winnerText = "¡Ganaste la ronda!"; } 
+            else if (roundWinner === 'cpu') { if (gameMode === 'MULTI') winnerText = "¡Gana el Jugador 2 la ronda!"; else if (gameMode === 'ONLINE') winnerText = (myRole === 'cpu') ? "¡Ganaste la ronda!" : "¡Gana el Rival la ronda!"; else winnerText = "¡Perdiste la ronda!"; } 
+            else { winnerText = "¡Ronda Empatada!"; }
+            let finalMsg = `${winnerText} (Supervivientes: ${playerScore} a ${cpuScore})`; document.getElementById('status-msg').innerText = finalMsg;
+
+            document.getElementById('btn-battle-log').style.display = 'inline-block';
+
+            if (isMatchOver) { handleMatchEnd(roundWinner); } 
+            else { if (winsPlayer === winsCPU && winsPlayer === winsNeeded - 1) { document.getElementById('btn-next-round').innerText = "Ronda de desempate"; } else { document.getElementById('btn-next-round').innerText = "Siguiente Ronda"; } document.getElementById('btn-next-round').style.display = 'inline-block'; if (gameMode === 'ONLINE' && myRole === 'cpu') { document.getElementById('status-msg').innerText += " | Esperando al Anfitrión..."; document.getElementById('btn-next-round').style.display = 'none'; } }
+        }
+
+        function handleMatchEnd(finalWinner, isTimeOut = false) {
+            let matchText = ""; let isLocalWinner = false; let isTie = (finalWinner === null);
+
+            if (gameMode === 'ONLINE') { isLocalWinner = (finalWinner === myRole); matchText = isTie ? "¡PARTIDA EMPATADA!" : (isLocalWinner ? "¡HAS GANADO LA PARTIDA!" : "¡HAS PERDIDO LA PARTIDA!"); } 
+            else if (gameMode === 'MULTI') { matchText = isTie ? "¡PARTIDA EMPATADA!" : ((finalWinner === 'player') ? "¡GANA EL JUGADOR 1 LA PARTIDA!" : "¡GANA EL JUGADOR 2 LA PARTIDA!"); isLocalWinner = true; } 
+            else { isLocalWinner = (finalWinner === 'player'); matchText = isTie ? "¡PARTIDA EMPATADA!" : (isLocalWinner ? "¡HAS GANADO LA PARTIDA!" : "¡HAS PERDIDO LA PARTIDA!"); }
+
+            if (!isTimeOut) { document.getElementById('status-msg').innerText += ` | ${matchText}`; } 
+            else { document.getElementById('status-msg').innerText += ` | ${matchText}`; }
+
+            if (isLocalWinner && !isTie) { sfxVictoryFanfare(); } 
+            else if (!isLocalWinner && !isTie && gameMode !== 'MULTI') { sfxDefeatFanfare(); } 
+            else if (isTie) { sfxDefeatFanfare(); }
+
+            if (gameMode === 'STORY') {
+                if (winsPlayer >= 2) { 
+                    if (currentStage === 1) { 
+                        showUnlockModal('cabra'); 
+                    } else if (currentStage === 2) { 
+                        showUnlockModal('alfa'); 
+                    } else if (currentStage === 3) {
+                        showUnlockModal('abuela'); 
+                    } else if (currentStage === 4) {
+                        showUnlockModal('perro');
+                    } else { 
+                        if (currentStage >= 6) sfxGrandFinalFanfare(); else sfxVictoryFanfare(); 
+                        showStoryVictoryModal(); 
+                    } 
+                    return; 
+                } 
+                else { storyLives--; document.getElementById('lives-counter').innerText = storyLives; if (storyLives <= 0) { document.getElementById('status-msg').innerText = "¡Te has quedado sin vidas!"; setTimeout(() => { alert("Has perdido tus 2 vidas. Volviendo al Menú Principal..."); goToMenu(); }, 1800); } else { document.getElementById('btn-restart').style.display = 'inline-block'; document.getElementById('btn-restart').innerText = "Reintentar Fase"; } }
+            } else if (gameMode === 'TUTORIAL') { document.getElementById('btn-restart').innerText = "🏠 Volver al Menú"; document.getElementById('btn-restart').style.display = 'inline-block'; setTimeout(showTutorialEpilogue, 1500); } 
+            else { document.getElementById('btn-restart').style.display = 'inline-block'; }
+        }
+
+        function showStoryVictoryModal() {
+            if (currentStage >= 6) { storyModalState = 'EPILOGUE'; document.getElementById('story-title').innerText = "🏆 ¡VICTORIA FINAL EN LAS PRADERAS!"; document.getElementById('story-text').innerText = `"${storyVictoryTexts[6]}"\n\n${storyFinalEpilogueText}`; document.getElementById('btn-story-continue').innerText = "¡Volver al Menú Principal!"; } 
+            else { storyModalState = 'VICTORY'; document.getElementById('story-title').innerText = `¡Desafío ${currentStage} Superado!`; document.getElementById('story-text').innerText = storyVictoryTexts[currentStage]; document.getElementById('btn-story-continue').innerText = `¡Avanzar a la Fase ${currentStage + 1}!`; }
+            document.getElementById('story-modal').style.display = 'flex';
+        }
+    </script>
+</body>
+</html>
